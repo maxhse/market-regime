@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>持股水位建議</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f2ee;--card:#fffdf9;--ink:#1b1d21;--muted:#6b6f76;--line:#e3dfd7;
+  --bull:#c23b2a;--bear:#1f7a4d;--neutral:#8a8f98;--accent:#2b4c7e;--warn:#b7791f;--warnbg:#fdf3e1;
+}
+/* 台股慣例：紅漲綠跌 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121417;--card:#1b1e23;--ink:#e9e7e2;--muted:#9aa0a8;--line:#2c3037;
+  --bull:#ef6a58;--bear:#3fb37a;--neutral:#8a8f98;--accent:#86a8dc;--warn:#e0a84a;--warnbg:#2a2318;}}
+:root[data-theme="dark"]{--bg:#121417;--card:#1b1e23;--ink:#e9e7e2;--muted:#9aa0a8;--line:#2c3037;
+  --bull:#ef6a58;--bear:#3fb37a;--neutral:#8a8f98;--accent:#86a8dc;--warn:#e0a84a;--warnbg:#2a2318;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC",system-ui,sans-serif;line-height:1.55}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 60px}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+h1{font-size:20px;margin:0;letter-spacing:.04em}
+.meta{color:var(--muted);font-size:13px}
+.banner{background:var(--warnbg);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);
+  border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:500;letter-spacing:.05em}
+.hero{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center}
+.big{font-size:72px;font-weight:700;line-height:1}
+.big small{font-size:28px;margin-left:2px}
+.regime{display:inline-block;padding:2px 10px;border-radius:999px;font-size:14px;font-weight:500;margin-top:8px}
+.gauge{display:flex;gap:4px;margin:6px 0 10px}
+.gauge div{flex:1;height:12px;border-radius:3px;background:var(--line);position:relative}
+.gauge div.on{background:var(--accent)}
+.gauge-l{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.kv{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-top:10px}
+.kv b{color:var(--ink);font-weight:500}
+.cats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.cat{text-align:center;font-size:13px}
+.cat .bar{height:70px;position:relative;margin:6px auto;width:24px;background:var(--line);border-radius:4px}
+.cat .bar i{position:absolute;left:0;right:0;border-radius:4px}
+.cat .bar:after{content:"";position:absolute;left:-4px;right:-4px;top:50%;border-top:1px dashed var(--muted)}
+.sig{display:grid;grid-template-columns:14px 92px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:14px;align-items:start}
+.sig:first-of-type{border-top:0}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:6px}
+.sig .n{font-weight:500}
+.sig .c{color:var(--muted);font-size:12px;display:block}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.sc{border:1px solid var(--line);border-left:4px solid var(--neutral);border-radius:10px;padding:14px}
+.sc .t{font-weight:700;font-size:16px}
+.sc .t span{font-size:12px;color:var(--muted);font-weight:400;margin-left:6px}
+.sc p{margin:6px 0;font-size:14px}
+.sc .act{font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;font-size:12px;color:var(--muted);text-align:center}
+.stats b{display:block;font-size:15px;color:var(--ink)}
+.weak{opacity:.7}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{text-align:left;padding:7px 6px;border-top:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;border-top:0}
+.ok{color:var(--bear)} .miss{color:var(--bull)}
+svg text{fill:var(--muted);font-size:11px;font-family:"JetBrains Mono",monospace}
+.empty{text-align:center;padding:30px 10px;color:var(--muted)}
+.empty .big{font-size:40px;color:var(--ink);margin-bottom:8px}
+@media (max-width:620px){
+  .hero{grid-template-columns:1fr;gap:10px}.big{font-size:60px}
+  .cats{grid-template-columns:repeat(5,1fr);gap:4px}.sig{grid-template-columns:14px 78px 1fr}
+  .hide-s{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>持股水位建議</h1>
+    <div class="meta" id="meta">載入中…</div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div id="app"></div>
+</div>
+<script>
+const C = v => v > 0 ? 'var(--bull)' : v < 0 ? 'var(--bear)' : 'var(--neutral)';
+const tone = {bull:'var(--bull)',bear:'var(--bear)',neutral:'var(--neutral)'};
+const fmt = (x,d=0) => x==null||isNaN(x) ? '—' : Number(x).toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const regColor = {多頭:'var(--bull)',偏多:'var(--bull)',盤整:'var(--neutral)',偏空:'var(--bear)',空頭:'var(--bear)'};
+
+fetch('latest.json?_=' + Date.now()).then(r => r.json()).then(render).catch(e => {
+  document.getElementById('app').innerHTML = '<div class="card empty">讀取 latest.json 失敗：' + esc(e) + '</div>';
+});
+
+function render(j){
+  document.getElementById('meta').innerHTML = j.as_of
+    ? `資料日期 <span class="mono">${j.as_of}</span>・產生於 <span class="mono">${esc(j.generated_at)}</span>`
+    : `產生於 <span class="mono">${esc(j.generated_at)}</span>`;
+  document.getElementById('banner').textContent =
+    `模型版本：${j.model_version}。權重與門檻為初始設定，回測驗證完成前僅供參考。`;
+  const app = document.getElementById('app');
+  if (j.status !== 'ok') {
+    app.innerHTML = `<div class="card empty"><div class="big">等待資料</div>${esc(j.message)}</div>` + dataTable(j.data_status);
+    return;
+  }
+  app.innerHTML = hero(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
+}
+
+function hero(j){
+  const tiers=[0,30,50,70,100];
+  const g = tiers.slice(1).map(t => `<div class="${j.exposure>=t?'on':''}"></div>`).join('');
+  const diff = j.exposure - j.prev_exposure;
+  const chg = diff===0 ? '與前一日相同' : `較前一日 ${diff>0?'提高':'降低'} ${Math.abs(diff)}%`;
+  return `<div class="card hero">
+    <div><div class="big mono">${j.exposure}<small>%</small></div>
+      <span class="regime" style="background:color-mix(in srgb,${regColor[j.regime]} 15%,transparent);color:${regColor[j.regime]}">${j.regime}</span></div>
+    <div><h2>建議整體持股水位</h2>
+      <div class="gauge">${g}</div>
+      <div class="gauge-l mono"><span>0</span><span>30</span><span>50</span><span>70</span><span>100</span></div>
+      <div class="kv"><span>${chg}</span>
+        <span>加權收盤 <b class="mono">${fmt(j.close)}</b> <span class="mono" style="color:${C(j.change_pct)}">${j.change_pct>0?'+':''}${fmt(j.change_pct,2)}%</span></span>
+        <span>綜合分數 <b class="mono">${fmt(j.score,2)}</b></span></div>
+    </div></div>`;
+}
+
+function cats(j){
+  const items = ['趨勢','籌碼','廣度','恐慌','外部'].map(k => {
+    const v = j.categories[k];
+    if (v==null) return `<div class="cat"><div class="bar"></div>${k}<div class="mono" style="color:var(--muted)">缺資料</div></div>`;
+    const h = Math.min(Math.abs(v),1)*50;
+    const pos = v>=0 ? `bottom:50%;height:${h}%` : `top:50%;height:${h}%`;
+    return `<div class="cat"><div class="bar"><i style="${pos};background:${C(v)}"></i></div>${k}<div class="mono" style="color:${C(v)}">${v>0?'+':''}${fmt(v,2)}</div></div>`;
+  }).join('');
+  return `<div class="card"><h2>五大面向分數（−1 偏空 ～ +1 偏多）</h2><div class="cats">${items}</div></div>`;
+}
+
+function signals(j){
+  const rows = j.signals.map(s => `<div class="sig"><span class="dot" style="background:${tone[s.state]}"></span>
+    <span class="n">${esc(s.name)}<span class="c">${esc(s.cat)}</span></span><span>${esc(s.detail)}</span></div>`).join('');
+  return `<div class="card"><h2>今日訊號　<span style="color:var(--bull)">●</span> 偏多　<span style="color:var(--bear)">●</span> 偏空　<span style="color:var(--neutral)">●</span> 中性</h2>${rows}</div>`;
+}
+
+function scen(j){
+  const cards = j.scenarios.map(s => {
+    const st = s.stats || {};
+    const stats = st.n ? `<div class="stats ${st.reliable?'':'weak'}">
+        <span><b class="mono">${st.n}</b>樣本${st.reliable?'':'（少）'}</span>
+        <span><b class="mono">${st.up5}%</b>5日上漲</span>
+        <span><b class="mono">${st.up20}%</b>20日上漲</span>
+        <span><b class="mono">${st.fail20}%</b>失敗平均</span></div>`
+      : `<div class="note">歷史上未出現過，無統計</div>`;
+    return `<div class="sc" style="border-left-color:${tone[s.tone]}">
+      <div class="t">${s.key}・${esc(s.name)}<span>${esc(s.meaning)}</span></div>
+      <p>若：${esc(s.cond)}</p><p class="act" style="color:${tone[s.tone]}">→ ${esc(s.action)}</p>${stats}</div>`;
+  }).join('');
+  return `<div class="card"><h2>明日劇本</h2><div class="sgrid">${cards}</div>
+    <div class="note">${esc(j.stats_note)}「失敗平均」為 20 日後下跌的案例平均跌幅。點位為明日收盤需站上／跌破的價位。</div></div>`;
+}
+
+function chart(j){
+  const h = j.history; if (!h || h.length < 2) return '';
+  const W=900,H=260,P={l:46,r:10,t:12,b:22}, ih=H-P.t-P.b, iw=W-P.l-P.r;
+  const lo=Math.min(...h.map(x=>x.c)), hi=Math.max(...h.map(x=>x.c));
+  const X=i=>P.l+i/(h.length-1)*iw, Y=v=>P.t+(1-(v-lo)/(hi-lo||1))*ih*0.72;
+  const bandTop=P.t+ih*0.78, bandH=ih*0.22;
+  let bars='';
+  h.forEach((d,i)=>{ const bh=d.t/100*bandH; bars+=`<rect x="${X(i)-iw/h.length/2}" y="${bandTop+bandH-bh}" width="${iw/h.length+0.5}" height="${bh}" fill="var(--accent)" opacity=".55"/>`; });
+  const line=h.map((d,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(d.c).toFixed(1)}`).join('');
+  const ticks=[0,Math.floor(h.length/2),h.length-1].map(i=>`<text x="${X(i)}" y="${H-6}" text-anchor="${i===0?'start':i===h.length-1?'end':'middle'}">${h[i].d}</text>`).join('');
+  const yl=[lo,(lo+hi)/2,hi].map(v=>`<text x="${P.l-6}" y="${Y(v)+4}" text-anchor="end">${fmt(v)}</text>`).join('');
+  return `<div class="card"><h2>近 ${h.length} 日：加權指數（線）與建議水位（柱）</h2>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="加權指數與建議水位">
+    ${bars}<path d="${line}" fill="none" stroke="var(--ink)" stroke-width="1.4"/>${ticks}${yl}
+    <text x="${P.l-6}" y="${bandTop+10}" text-anchor="end">100%</text><text x="${P.l-6}" y="${bandTop+bandH}" text-anchor="end">0%</text></svg></div>`;
+}
+
+function dataTable(ds){
+  const rows = ds.map(d => `<tr><td class="mono">${d.file}</td><td class="hide-s">${esc(d.label)}</td>
+    <td>${d.required?'必備':'選用'}</td>
+    <td class="${d.present?'ok':(d.required?'miss':'')}">${d.present?'✓ '+d.rows+' 筆':'缺'}${d.missing_cols&&d.missing_cols.length?'<br><small>缺欄位：'+d.missing_cols.join(', ')+'</small>':''}</td>
+    <td class="mono hide-s">${d.first?d.first+' ~ '+d.last:'—'}</td></tr>`).join('');
+  return `<div class="card"><h2>資料完整度</h2><table><tr><th>檔案</th><th class="hide-s">內容</th><th>類型</th><th>狀態</th><th class="hide-s">期間</th></tr>${rows}</table>
+    <div class="note">欄位規格見 repo 的 data/README.md。</div></div>`;
+}
+</script>
+</body>
+</html>

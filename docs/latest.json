@@ -1,0 +1,138 @@
+{
+ "model_version": "v0 初版規則（尚未回測驗證）",
+ "generated_at": "2026-11-12 08:20",
+ "data_status": [
+  {
+   "file": "taiex.csv",
+   "label": "加權指數 OHLC、成交金額",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "tpex.csv",
+   "label": "櫃買指數 OHLC、成交金額",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "taiex_tr.csv",
+   "label": "加權報酬指數",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "tpex_tr.csv",
+   "label": "櫃買報酬指數",
+   "required": false,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "tsmc.csv",
+   "label": "台積電收盤價、股數",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "margin.csv",
+   "label": "上市櫃融資融券餘額",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "mktcap.csv",
+   "label": "上市櫃總市值",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "inst.csv",
+   "label": "上市外資、投信買賣超",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "futures.csv",
+   "label": "外資台指期淨未平倉、P/C ratio",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "breadth.csv",
+   "label": "漲跌家數、漲跌停家數",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "external.csv",
+   "label": "台幣匯率、費半指數",
+   "required": true,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "stock_margin.csv",
+   "label": "個股融資張數（維持率）",
+   "required": false,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  },
+  {
+   "file": "stock_close.csv",
+   "label": "個股收盤價（含下市）",
+   "required": false,
+   "present": false,
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "missing_cols": []
+  }
+ ],
+ "status": "no_data",
+ "message": "尚未放入 taiex.csv（至少需要 80 個交易日）"
+}
