@@ -87,7 +87,7 @@ const C = v => v > 0 ? 'var(--bull)' : v < 0 ? 'var(--bear)' : 'var(--neutral)';
 const tone = {bull:'var(--bull)',bear:'var(--bear)',neutral:'var(--neutral)'};
 const fmt = (x,d=0) => x==null||isNaN(x) ? '—' : Number(x).toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d});
 const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-const regColor = {多頭:'var(--bull)',偏多:'var(--bull)',盤整:'var(--neutral)',偏空:'var(--bear)',空頭:'var(--bear)'};
+const regColor = {'季線之上':'var(--bull)','跌破季線':'var(--bear)','跌破季線且下彎':'var(--bear)',多頭:'var(--bull)',偏多:'var(--bull)',盤整:'var(--neutral)',偏空:'var(--bear)',空頭:'var(--bear)'};
 
 fetch('latest.json?_=' + Date.now()).then(r => r.json()).then(render).catch(e => {
   document.getElementById('app').innerHTML = '<div class="card empty">讀取 latest.json 失敗：' + esc(e) + '</div>';
@@ -97,8 +97,7 @@ function render(j){
   document.getElementById('meta').innerHTML = j.as_of
     ? `資料日期 <span class="mono">${j.as_of}</span>・產生於 <span class="mono">${esc(j.generated_at)}</span>`
     : `產生於 <span class="mono">${esc(j.generated_at)}</span>`;
-  document.getElementById('banner').textContent =
-    `模型版本：${j.model_version}。權重與門檻為初始設定，回測驗證完成前僅供參考。`;
+  document.getElementById('banner').textContent = `模型版本：${j.model_version}。${j.model_note || ''}`;
   const app = document.getElementById('app');
   if (j.status !== 'ok') {
     app.innerHTML = `<div class="card empty"><div class="big">等待資料</div>${esc(j.message)}</div>` + dataTable(j.data_status);
@@ -132,7 +131,7 @@ function cats(j){
     const pos = v>=0 ? `bottom:50%;height:${h}%` : `top:50%;height:${h}%`;
     return `<div class="cat"><div class="bar"><i style="${pos};background:${C(v)}"></i></div>${k}<div class="mono" style="color:${C(v)}">${v>0?'+':''}${fmt(v,2)}</div></div>`;
   }).join('');
-  return `<div class="card"><h2>五大面向分數（−1 偏空 ～ +1 偏多）</h2><div class="cats">${items}</div></div>`;
+  return `<div class="card"><h2>盤勢解讀：五大面向分數（−1 偏空 ～ +1 偏多，不影響水位）</h2><div class="cats">${items}</div></div>`;
 }
 
 function signals(j){

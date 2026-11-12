@@ -21,7 +21,11 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "raw"
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "docs" / "latest.json"
 
-MODEL_VERSION = "v0 初版規則（尚未回測驗證）"
+MODEL_VERSION = "v2 季線＋斜率規則"
+MODEL_NOTE = ("水位只由季線決定：站上季線 100%、跌破 50%、跌破且季線下彎 30%。"
+              "開發期（2015/6–2024/12）回測：用期貨調整時報酬與回撤皆優於大盤；用現股調整時 2015–2019 輸大盤。"
+              "最終驗收（2025 年起）尚未執行。下方五大面向與訊號僅供解讀盤勢，不影響水位。")
+RULE = {"above": 100, "below": 50, "below_down": 30}
 TIERS = [0, 30, 50, 70, 100]
 # 總分門檻：分數 >= 門檻 → 對應水位（由高到低）
 TIER_CUTS = [(0.40, 100), (0.10, 70), (-0.20, 50), (-0.50, 30)]
@@ -320,6 +324,48 @@ def close_needed(c, n):
     return float(c.iloc[-(n - 1):].mean())
 
 
+def rule_tiers(f):
+    below, down = f["close"] < f["ma60"], f["ma60_slope"] < -0.5
+    t = np.where(below & down, RULE["below_down"], np.where(below, RULE["below"], RULE["above"]))
+    return pd.Series(t, index=f.index).where(f["ma60"].notna())
+
+
+def scenarios_v2(f, tier, fwd_base):
+    c, r = f["close"], f.iloc[-1]
+    lv5, lv20, lv60 = close_needed(c, 5), close_needed(c, 20), close_needed(c, 60)
+    below, down = c < f["ma60"], f["ma60_slope"] < -0.5
+    slope = "下彎" if r.ma60_slope < -0.5 else "上彎" if r.ma60_slope > 0.5 else "走平"
+    out = []
+    if tier == 100:
+        ev = below & ~below.shift(1, fill_value=False)
+        out.append({"key": "A", "name": "轉弱", "tone": "bear", "cond": f"收盤跌破季線（約 {fnum(lv60)}），季線目前{slope}",
+                    "meaning": "中期趨勢轉弱", "action": f"水位降到 {RULE['below_down'] if slope == '下彎' else RULE['below']}%",
+                    "stats": event_stats(ev, fwd_base)})
+        ev = (c < f["ma20"]) & (c.shift(1) >= f["ma20"].shift(1)) & ~below
+        out.append({"key": "B", "name": "警戒", "tone": "neutral", "cond": f"收盤跌破月線（約 {fnum(lv20)}）",
+                    "meaning": "短線轉弱，季線仍在上方", "action": "水位不變，留意是否續跌破季線", "stats": event_stats(ev, fwd_base)})
+        if "above_ma60" in f:
+            ev = (c >= c.rolling(60).max()) & (f["above_ma60"] < 0.5)
+            out.append({"key": "C", "name": "廣度背離", "tone": "neutral", "cond": "指數創 60 日新高，但站上 60 日線的個股不到一半",
+                        "meaning": "漲勢集中在少數個股，容易停滯", "action": "水位不變，不建議加槓桿", "stats": event_stats(ev, fwd_base)})
+    else:
+        ev = ~below & below.shift(1, fill_value=False)
+        out.append({"key": "A", "name": "轉強", "tone": "bull", "cond": f"收盤站回季線（約 {fnum(lv60)}）",
+                    "meaning": "中期趨勢恢復", "action": f"水位回到 {RULE['above']}%", "stats": event_stats(ev, fwd_base)})
+        if tier == RULE["below"]:
+            ev = below & down & ~down.shift(1, fill_value=False)
+            out.append({"key": "B", "name": "續弱", "tone": "bear", "cond": "收盤仍在季線下，且季線由走平轉為下彎",
+                        "meaning": "跌勢由回檔轉為趨勢", "action": f"水位降到 {RULE['below_down']}%", "stats": event_stats(ev, fwd_base)})
+        else:
+            ev = below & ~down & down.shift(1, fill_value=False)
+            out.append({"key": "B", "name": "趨緩", "tone": "bull", "cond": "季線由下彎轉為走平",
+                        "meaning": "跌勢趨緩", "action": f"水位回到 {RULE['below']}%", "stats": event_stats(ev, fwd_base)})
+        ev = below & (c > f["ma5"]) & (c.shift(1) <= f["ma5"].shift(1)) & (f["ma5_slope"].shift(1) < 0)
+        out.append({"key": "C", "name": "止跌跡象", "tone": "neutral", "cond": f"爆量長下影線，或收盤站上下彎的 5 日線（約 {fnum(lv5)}）",
+                    "meaning": "回測顯示這類訊號之後的表現沒有比平常好", "action": "水位不變，等站回季線", "stats": event_stats(ev, fwd_base)})
+    return out, {"ma5": lv5, "ma20": lv20, "ma60": lv60}
+
+
 def scenarios(f, tier, fwd_base):
     c, r = f["close"], f.iloc[-1]
     lv5, lv20, lv60 = close_needed(c, 5), close_needed(c, 20), close_needed(c, 60)
@@ -379,7 +425,7 @@ def scenarios(f, tier, fwd_base):
 def main():
     data, status = load_all()
     tw_now = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M")
-    base = {"model_version": MODEL_VERSION, "generated_at": tw_now, "data_status": status}
+    base = {"model_version": MODEL_VERSION, "model_note": MODEL_NOTE, "generated_at": tw_now, "data_status": status}
 
     if "taiex" not in data or len(data["taiex"]) < 80:
         base.update({"status": "no_data", "message": "尚未放入 taiex.csv（至少需要 80 個交易日）"})
@@ -393,12 +439,12 @@ def main():
 
     f, S = build_features(data)
     score, cats = total_score(S)
-    tiers = to_tiers(score)
+    tiers = rule_tiers(f)
     fwd_base = data["taiex_tr"]["close"].reindex(f.index).ffill() if "taiex_tr" in data else f["close"]
 
     tier, sc = int(tiers.iloc[-1]), float(score.iloc[-1])
     prev = int(tiers.iloc[-2]) if not pd.isna(tiers.iloc[-2]) else tier
-    scen, levels = scenarios(f, tier, fwd_base)
+    scen, levels = scenarios_v2(f, tier, fwd_base)
 
     hist = pd.DataFrame({"close": f["close"], "tier": tiers, "score": score}).dropna().tail(500)
     base.update({
@@ -407,7 +453,7 @@ def main():
         "close": float(f["close"].iloc[-1]),
         "change_pct": float(f["close"].pct_change().iloc[-1] * 100),
         "exposure": tier, "prev_exposure": prev,
-        "regime": regime_label(sc), "score": round(sc, 3),
+        "regime": {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}[tier], "score": round(sc, 3),
         "categories": {k: round(float(v), 2) for k, v in cats.iloc[-1].dropna().items()},
         "signals": describe_today(f, S),
         "scenarios": scen,
