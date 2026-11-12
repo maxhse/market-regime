@@ -373,6 +373,9 @@ def main():
 
     if "taiex" not in data or len(data["taiex"]) < 80:
         base.update({"status": "no_data", "message": "尚未放入 taiex.csv（至少需要 80 個交易日）"})
+        if OUT.exists() and '"status": "ok"' in OUT.read_text(encoding="utf-8"):
+            print("no data → 保留既有結果，不覆寫")
+            return
         OUT.parent.mkdir(parents=True, exist_ok=True)
         OUT.write_text(json.dumps(base, ensure_ascii=False, indent=1), encoding="utf-8")
         print("no data → wrote placeholder")
