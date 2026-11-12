@@ -33,7 +33,8 @@ FILES = {
     "tpex": (["open", "high", "low", "close", "turnover"], "櫃買指數 OHLC、成交金額", True),
     "taiex_tr": (["close"], "加權報酬指數", True),
     "tpex_tr": (["close"], "櫃買報酬指數", False),
-    "tsmc": (["close", "shares"], "台積電收盤價、股數", True),
+    "tsmc": (["close"], "台積電收盤價（還原）", True),
+    "tsmc_mktcap": (["mktcap"], "台積電市值（扣台積電用）", False),
     "margin": (["twse_margin", "twse_short", "tpex_margin", "tpex_short"], "上市櫃融資融券餘額", True),
     "mktcap": (["twse_mktcap", "tpex_mktcap"], "上市櫃總市值", True),
     "inst": (["foreign_net", "trust_net"], "上市外資、投信買賣超", True),
@@ -169,10 +170,10 @@ def build_features(data):
     if tp is not None:
         tpc = tp["close"].reindex(idx).ffill(limit=3)
         base_ret = c.pct_change()
-        ts_c, ts_sh, mc = col(data, "tsmc", "close", idx), col(data, "tsmc", "shares", idx), col(data, "mktcap", "twse_mktcap", idx)
+        ts_c, ts_mc, mc = col(data, "tsmc", "close", idx), col(data, "tsmc_mktcap", "mktcap", idx), col(data, "mktcap", "twse_mktcap", idx)
         f["base_label"] = "加權指數"
-        if ts_c is not None and ts_sh is not None and mc is not None:
-            w = (ts_c * ts_sh / 1e8 / mc).shift(1).clip(0, 0.8)  # 前一日台積電權重（市值單位：億）
+        if ts_c is not None and ts_mc is not None and mc is not None:
+            w = (ts_mc / mc).shift(1).clip(0, 0.8)  # 前一日台積電權重（市值單位皆為億）
             base_ret = (c.pct_change() - w * ts_c.pct_change()) / (1 - w)
             f["base_label"] = "加權扣台積電"
         base = (1 + base_ret.fillna(0)).cumprod()
@@ -289,15 +290,17 @@ def describe_today(f, S):
 # ---------- 劇本與歷史統計 ----------
 def event_stats(event, fwd_base):
     ev = event.fillna(False).astype(bool)
+    hit = ev.tail(5)
+    recent = str(hit[hit].index[-1].date()) if hit.any() else None  # 近 5 日已觸發
     # 去除連續觸發：5 日內只算第一次
     ev = ev & ~ev.shift(1, fill_value=False).rolling(5, min_periods=1).max().astype(bool)
     r5 = fwd_base.shift(-5) / fwd_base - 1
     r20 = fwd_base.shift(-20) / fwd_base - 1
     a5, a20 = r5[ev].dropna(), r20[ev].dropna()
     if len(a20) == 0:
-        return {"n": int(ev.sum()), "reliable": False}
+        return {"n": int(ev.sum()), "reliable": False, "recent": recent}
     return {
-        "n": int(len(a20)), "reliable": bool(len(a20) >= 10),
+        "n": int(len(a20)), "reliable": bool(len(a20) >= 10), "recent": recent,
         "up5": round(float((a5 > 0).mean()) * 100), "up20": round(float((a20 > 0).mean()) * 100),
         "avg20": round(float(a20.mean()) * 100, 1),
         "fail20": round(float(a20[a20 <= 0].mean()) * 100, 1) if (a20 <= 0).any() else 0.0,

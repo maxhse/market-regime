@@ -57,6 +57,7 @@ h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:500;letter-spac
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;font-size:12px;color:var(--muted);text-align:center}
 .stats b{display:block;font-size:15px;color:var(--ink)}
 .weak{opacity:.7}
+.trig{display:inline-block;background:var(--accent);color:var(--card);font-size:12px;padding:1px 8px;border-radius:999px;margin:4px 0 0}
 .note{font-size:12px;color:var(--muted);margin-top:10px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td,th{text-align:left;padding:7px 6px;border-top:1px solid var(--line)}
@@ -151,6 +152,7 @@ function scen(j){
       : `<div class="note">歷史上未出現過，無統計</div>`;
     return `<div class="sc" style="border-left-color:${tone[s.tone]}">
       <div class="t">${s.key}・${esc(s.name)}<span>${esc(s.meaning)}</span></div>
+      ${st.recent?`<p class="trig">近 5 日已觸發（${st.recent}）</p>`:''}
       <p>若：${esc(s.cond)}</p><p class="act" style="color:${tone[s.tone]}">→ ${esc(s.action)}</p>${stats}</div>`;
   }).join('');
   return `<div class="card"><h2>明日劇本</h2><div class="sgrid">${cards}</div>
