@@ -19,13 +19,14 @@ TWSE, TPEX, TR, TSMC = "Y9999", "OTC99", "Y9997", "2330"
 
 
 def read_tej(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path, sep="\t", dtype=str, encoding="utf-8-sig")
+    enc = "utf-16" if path.read_bytes()[:2] in (b"\xff\xfe", b"\xfe\xff") else "utf-8-sig"
+    df = pd.read_csv(path, sep="\t", dtype=str, encoding=enc)
     df.columns = [c.strip() for c in df.columns]
     code_col = df.columns[0]  # 證券代碼（第一欄，表頭可能有亂碼前綴）
     df["code"] = df[code_col].str.strip().str.split().str[0]
     df["date"] = pd.to_datetime(df["年月日"].str.strip(), format="%Y%m%d")
     for c in df.columns:
-        if c not in (code_col, "code", "date", "年月日"):
+        if c not in (code_col, "code", "date", "年月日", "漲跌停"):
             df[c] = pd.to_numeric(df[c].str.strip().replace(".", None), errors="coerce")
     return df
 
@@ -47,11 +48,46 @@ def merge_write(name, new: pd.DataFrame):
     print(f"  → {name}.csv  {len(new)} 筆  {new.index.min().date()} ~ {new.index.max().date()}")
 
 
+def breadth_from_stocks(df: pd.DataFrame) -> pd.DataFrame:
+    """全市場個股（含下市）還原收盤價 + 漲跌停註記 → 每日廣度。ETF（00 開頭）不計。"""
+    df = df[~df["code"].str.startswith("00")]
+    px = df.pivot_table(index="date", columns="code", values="收盤價(元)", aggfunc="last").sort_index()
+    flag = df.assign(f=df["漲跌停"].str.strip()).pivot_table(index="date", columns="code", values="f", aggfunc="last")
+    ret = px.pct_change(fill_method=None)
+    n = px.notna().sum(axis=1)
+    ma60 = px.rolling(60, min_periods=40).mean()
+    hi, lo = px.rolling(250, min_periods=120).max(), px.rolling(250, min_periods=120).min()
+    out = pd.DataFrame({
+        "n": n, "up": (ret > 0).sum(axis=1), "down": (ret < 0).sum(axis=1),
+        "limit_up": (flag == "+").sum(axis=1), "limit_down": (flag == "-").sum(axis=1),
+        "above_ma60": ((px > ma60).sum(axis=1) / ma60.notna().sum(axis=1)).round(4),
+        "new_high": ((px >= hi) & hi.notna()).sum(axis=1), "new_low": ((px <= lo) & lo.notna()).sum(axis=1),
+    })
+    out.iloc[0, out.columns.get_indexer(["up", "down"])] = float("nan")
+    return out
+
+
+def import_fx(paths):
+    """台北外匯經紀 USD/TWD 年度檔（DATE,OPEN,CLOSE,HIGH,LOW,...）→ external.csv 的 usdtwd 欄。"""
+    rows = []
+    for p in paths:
+        d = pd.read_csv(p, usecols=[0, 2], dtype=str, header=0, names=["date", "usdtwd"])
+        d["date"] = pd.to_datetime(d["date"].str.strip(), errors="coerce")
+        d["usdtwd"] = pd.to_numeric(d["usdtwd"].str.replace(",", "").str.strip(), errors="coerce")
+        rows.append(d.dropna())
+    fx = pd.concat(rows)
+    fx = fx[fx["usdtwd"] > 0].drop_duplicates("date").set_index("date").sort_index()
+    print("USD/TWD：")
+    merge_write("external", fx)
+
+
 def handle(path: Path):
     df = read_tej(path)
     cols = set(df.columns)
     print(f"{path.name}：")
-    if "收盤價(元)" in cols:  # 指數與台積電日 OHLC
+    if "漲跌停" in cols:
+        merge_write("breadth", breadth_from_stocks(df))
+    elif "收盤價(元)" in cols:  # 指數與台積電日 OHLC
         ohlc = {"開盤價(元)": "open", "最高價(元)": "high", "最低價(元)": "low", "收盤價(元)": "close"}
         for code, name in ((TWSE, "taiex"), (TPEX, "tpex")):
             if (df["code"] == code).any():
@@ -85,7 +121,10 @@ def handle(path: Path):
 
 if __name__ == "__main__":
     RAW.mkdir(parents=True, exist_ok=True)
+    fx = []
     for arg in sys.argv[1:]:
         p = Path(arg)
-        for f in sorted(p.glob("*.txt")) if p.is_dir() else [p]:
-            handle(f)
+        for f in sorted(list(p.glob("*.txt")) + list(p.glob("*nt.csv"))) if p.is_dir() else [p]:
+            fx.append(f) if f.suffix == ".csv" else handle(f)
+    if fx:
+        import_fx(fx)

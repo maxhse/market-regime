@@ -39,8 +39,7 @@ FILES = {
     "mktcap": (["twse_mktcap", "tpex_mktcap"], "上市櫃總市值", True),
     "inst": (["foreign_net", "trust_net"], "上市外資、投信買賣超", True),
     "futures": (["foreign_tx_net_oi", "pc_ratio"], "外資台指期淨未平倉、P/C ratio", True),
-    "breadth": (["twse_up", "twse_down", "twse_limit_up", "twse_limit_down",
-                 "tpex_up", "tpex_down", "tpex_limit_up", "tpex_limit_down"], "漲跌家數、漲跌停家數", True),
+    "breadth": (["up", "down", "limit_up", "limit_down", "above_ma60", "new_high", "new_low"], "全市場漲跌家數、漲跌停、廣度", True),
     "external": (["usdtwd", "sox"], "台幣匯率、費半指數", True),
     "stock_margin": (["stock_id", "margin_shares", "close"], "個股融資張數（維持率）", False),
     "stock_close": (["stock_id", "close"], "個股收盤價（含下市）", False),
@@ -162,7 +161,7 @@ def build_features(data):
         S["C4"] = np.select([(fo > 0) & (f["fut_oi_chg5"] > 0), (fo < 0) & (f["fut_oi_chg5"] < 0)], [1.0, -1.0], 0.0)
 
     # 廣度
-    up, dn = col(data, "breadth", "twse_up", idx), col(data, "breadth", "twse_down", idx)
+    up, dn = col(data, "breadth", "up", idx), col(data, "breadth", "down", idx)
     if up is not None and dn is not None:
         f["adr10"] = up.rolling(10).sum() / (up + dn).rolling(10).sum()
         S["B1"] = np.select([f["adr10"] > 0.55, f["adr10"] < 0.45], [1.0, -1.0], 0.0)
@@ -184,9 +183,8 @@ def build_features(data):
     weak = c < f["ma60"]
     S["P1"] = np.where(weak & (f["vol_z"] > 2), 1.0, 0.0)
     S["P2"] = np.where(weak & f["long_lower"] & (f["vol_z"] > 1), 1.0, 0.0)
-    ld1, ld2 = col(data, "breadth", "twse_limit_down", idx), col(data, "breadth", "tpex_limit_down", idx)
-    if ld1 is not None:
-        ld = ld1 + (ld2 if ld2 is not None else 0)
+    ld = col(data, "breadth", "limit_down", idx)
+    if ld is not None:
         f["limit_down"], f["limit_down_z"] = ld, zscore(ld)
         S["P3"] = np.where(weak & (f["limit_down_z"] > 3), 1.0, 0.0)
     pc = col(data, "futures", "pc_ratio", idx)
@@ -271,7 +269,7 @@ def describe_today(f, S):
     if "C4" in t:
         out.append(sig("籌碼", "C4", "外資台指期", t["C4"], f"淨未平倉 {fnum(r.fut_oi)} 口，5 日變化 {fnum(r.fut_oi_chg5)} 口"))
     if "B1" in t:
-        out.append(sig("廣度", "B1", "上市漲跌家數", t["B1"], f"10 日上漲家數比例 {fnum(r.adr10 * 100, 1)}%"))
+        out.append(sig("廣度", "B1", "漲跌家數", t["B1"], f"10 日上漲家數比例 {fnum(r.adr10 * 100, 1)}%"))
     if "B2" in t:
         out.append(sig("廣度", "B2", "櫃買 vs 權值", t["B2"], f"櫃買 20 日相對{r.base_label} {fnum(r.rel20 * 100, 1)}%"))
     out.append(sig("恐慌", "P1", "恐慌爆量", t["P1"], f"成交金額 z={fnum(r.vol_z, 1)}" + ("，弱勢中爆量" if t["P1"] > 0 else "")))

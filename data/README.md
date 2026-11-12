@@ -17,7 +17,7 @@
 | 6 | `mktcap.csv` | date, twse_mktcap, tpex_mktcap | 必備 | 上市/上櫃總市值 |
 | 7 | `inst.csv` | date, foreign_net, trust_net | 必備 | 上市外資、投信買賣超金額 |
 | 8 | `futures.csv` | date, foreign_tx_net_oi, pc_ratio | 必備 | 外資台指期淨未平倉口數（日盤）、選擇權 P/C ratio（未平倉） |
-| 9 | `breadth.csv` | date, twse_up, twse_down, twse_limit_up, twse_limit_down, tpex_up, tpex_down, tpex_limit_up, tpex_limit_down | 必備 | 漲跌家數、漲跌停家數 |
+| 9 | `breadth.csv` | date, n, up, down, limit_up, limit_down, above_ma60, new_high, new_low | 必備 | 全市場廣度；由「個股收盤價＋漲跌停註記」檔自動算出（`engine/import_tej.py`） |
 | 10 | `external.csv` | date, usdtwd, sox | 必備 | 台幣匯率、費半指數 |
 | 11 | `stock_margin.csv` | date, stock_id, margin_shares, close | 建議 | 個股融資張數＋收盤價，推算大盤融資維持率 |
 | 12 | `stock_close.csv` | date, stock_id, close | 次要 | 個股收盤價（含下市櫃），算站上 60 日線比例、新高新低家數 |
