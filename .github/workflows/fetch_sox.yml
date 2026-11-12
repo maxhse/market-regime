@@ -1,0 +1,21 @@
+name: fetch-sox
+on:
+  push:
+    paths: ["engine/fetch_sox.py"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python engine/fetch_sox.py
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data/public/sox.csv
+          git diff --cached --quiet || git commit -m "更新費半指數 $(date +%F)"
+          git push
