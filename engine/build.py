@@ -72,6 +72,16 @@ def load_all():
             except Exception as e:  # noqa: BLE001
                 item["error"] = str(e)
         status.append(item)
+    # 費半（公開資料，Actions 抓取）：美股 d 日收盤要到台股 d+1 日才知道，所以日期往後移一天再對齊
+    pub = ROOT / "data" / "public" / "sox.csv"
+    if pub.exists() and "external" in data:
+        sx = pd.read_csv(pub, parse_dates=["date"]).set_index("date")["sox"]
+        sx.index = sx.index + pd.Timedelta(days=1)
+        ext = data["external"]
+        ext["sox"] = sx.reindex(ext.index.union(sx.index)).ffill().reindex(ext.index)
+        for it in status:
+            if it["file"] == "external.csv":
+                it["missing_cols"] = [c for c in it["missing_cols"] if c != "sox"]
     return data, status
 
 
