@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
-from rule import LEVELS as RULE, N_CONFIRM, rule as apply_rule  # noqa: E402
+from rule import LEVELS as RULE, N_CONFIRM, STATE_DESC, STATE_ORDER, classify, rule as apply_rule  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "raw"
@@ -463,6 +463,21 @@ def main():
 
     tier, sc = int(tiers.iloc[-1]), float(score.iloc[-1])
     prev = int(tiers.iloc[-2]) if not pd.isna(tiers.iloc[-2]) else tier
+    # 盤勢狀態與各狀態的歷史風險（之後 20 日）
+    stt = classify(f["close"], R)
+    eqf = fwd_base / fwd_base.iloc[0]
+    f20 = eqf.shift(-20) / eqf - 1
+    w20 = pd.concat([eqf.shift(-k) / eqf - 1 for k in range(1, 21)], axis=1).min(axis=1)
+    sd = pd.DataFrame({"s": stt, "f": f20, "w": w20}).dropna()
+    ladder = []
+    for name in STATE_ORDER:
+        x = sd[sd["s"] == name]
+        ladder.append({"name": name, "desc": STATE_DESC[name], "share": round(len(x) / max(len(sd), 1) * 100),
+                       "up20": round(float((x["f"] > 0).mean() * 100)) if len(x) else None,
+                       "avg20": round(float(x["f"].mean() * 100), 1) if len(x) else None,
+                       "drop8": round(float((x["w"] < -0.08).mean() * 100)) if len(x) else None})
+    cur_state = stt.iloc[-1]
+    since = int((stt[::-1] == cur_state).cumprod().sum())
     scen, levels, slope_lab = scenarios_v3(f, R, fwd_base)
     sigs, catd = describe_today(f, S), {k: round(float(v), 2) for k, v in cats.iloc[-1].dropna().items()}
     ctx_path = OUT.parent / "context.json"
@@ -492,6 +507,7 @@ def main():
         "rule": {"ma60": round(float(R["ma"].iloc[-1]), 0), "slope": slope_lab, "streak": int(R["streak"].iloc[-1]),
                  "side": "下" if bool(R["below"].iloc[-1]) else "上"},
         "context_date": ctx_date,
+        "state": {"name": cur_state, "days": since, "ladder": ladder},
         "categories": catd,
         "signals": sigs,
         "scenarios": scen,

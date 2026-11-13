@@ -57,6 +57,13 @@ h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:500;letter-spac
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;font-size:12px;color:var(--muted);text-align:center}
 .stats b{display:block;font-size:15px;color:var(--ink)}
 .weak{opacity:.7}
+.st{display:grid;grid-template-columns:150px 1fr auto;gap:12px;padding:10px 12px;border-top:1px solid var(--line);align-items:center;font-size:14px;border-left:4px solid transparent}
+.st:first-of-type{border-top:0}
+.st.on{background:color-mix(in srgb,var(--accent) 9%,transparent);border-left-color:var(--accent);border-radius:8px}
+.st .sn{font-weight:700}.st .sn span{display:block;font-size:12px;font-weight:400;color:var(--accent)}
+.st .sd{color:var(--muted);font-size:13px}
+.st .ss{display:flex;gap:14px;font-size:11px;color:var(--muted);text-align:center}.st .ss b{display:block;font-size:14px;color:var(--ink)}
+@media (max-width:620px){.st{grid-template-columns:1fr}.st .ss{justify-content:flex-start}}
 .trig{display:inline-block;background:var(--accent);color:var(--card);font-size:12px;padding:1px 8px;border-radius:999px;margin:4px 0 0}
 .note{font-size:12px;color:var(--muted);margin-top:10px}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -103,7 +110,7 @@ function render(j){
     app.innerHTML = `<div class="card empty"><div class="big">等待資料</div>${esc(j.message)}</div>` + dataTable(j.data_status);
     return;
   }
-  app.innerHTML = hero(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
+  app.innerHTML = hero(j) + stateCard(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
 }
 
 function hero(j){
@@ -113,7 +120,7 @@ function hero(j){
   const chg = diff===0 ? '與前一日相同' : `較前一日 ${diff>0?'提高':'降低'} ${Math.abs(diff)}%`;
   return `<div class="card hero">
     <div><div class="big mono">${j.exposure}<small>%</small></div>
-      <span class="regime" style="background:color-mix(in srgb,${regColor[j.regime]} 15%,transparent);color:${regColor[j.regime]}">${j.regime}</span></div>
+      <span class="regime" style="background:color-mix(in srgb,${regColor[j.regime]} 15%,transparent);color:${regColor[j.regime]}">${j.state?esc(j.state.name):j.regime}</span></div>
     <div><h2>建議整體持股水位</h2>
       <div class="gauge">${g}</div>
       <div class="gauge-l mono"><span>0</span><span>30</span><span>50</span><span>70</span><span>100</span></div>
@@ -121,6 +128,16 @@ function hero(j){
         <span>加權收盤 <b class="mono">${fmt(j.close)}</b> <span class="mono" style="color:${C(j.change_pct)}">${j.change_pct>0?'+':''}${fmt(j.change_pct,2)}%</span></span>
         ${j.rule?`<span>季線 <b class="mono">${fmt(j.rule.ma60)}</b>（${j.rule.slope}）</span><span>已連續 <b class="mono">${j.rule.streak}</b> 天收在季線${j.rule.side}</span>`:''}</div>
     </div></div>`;
+}
+
+function stateCard(j){
+  if (!j.state) return '';
+  const rows = j.state.ladder.map(s => { const on = s.name === j.state.name; return `<div class="st ${on?'on':''}">
+    <div class="sn">${esc(s.name)}${on?`<span>目前・第 ${j.state.days} 天</span>`:''}</div>
+    <div class="sd">${esc(s.desc)}</div>
+    <div class="ss mono"><span><b>${s.drop8 ?? '—'}%</b>再跌 8% 機率</span><span><b>${s.up20 ?? '—'}%</b>20 日上漲</span><span><b>${s.share}%</b>歷史占比</span></div></div>`; }).join('');
+  return `<div class="card"><h2>盤勢狀態（由上到下風險升高；統計為 2014 年起該狀態之後 20 日）</h2>${rows}
+    <div class="note">狀態用來說明現在的盤勢與下一步的升降級條件；水位仍由季線規則決定。</div></div>`;
 }
 
 function cats(j){
