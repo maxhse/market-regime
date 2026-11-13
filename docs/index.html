@@ -136,7 +136,7 @@ function stateCard(j){
     <div class="sn">${esc(s.name)}${on?`<span>目前・第 ${j.state.days} 天</span>`:''}</div>
     <div class="sd">${esc(s.desc)}</div>
     <div class="ss mono"><span><b>${s.drop8 ?? '—'}%</b>再跌 8% 機率</span><span><b>${s.up20 ?? '—'}%</b>20 日上漲</span><span><b>${s.share}%</b>歷史占比</span></div></div>`; }).join('');
-  return `<div class="card"><h2>盤勢狀態（由上到下風險升高；統計為 2014 年起該狀態之後 20 日）</h2>${rows}
+  return `<div class="card"><h2>盤勢狀態（統計為 2014 年起該狀態之後 20 日的實際走勢）</h2>${rows}
     <div class="note">狀態用來說明現在的盤勢與下一步的升降級條件；水位仍由季線規則決定。</div></div>`;
 }
 
