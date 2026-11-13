@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>籌碼雷達｜法人籌碼儀錶板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="banner">
+  <div class="banner-row">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <div class="brand-text">
+        <h1>籌碼雷達 <span>TAIWAN</span></h1>
+        <p class="tagline">上市櫃三大法人 · 融資餘額 · 台指期未平倉</p>
+        <nav class="site-nav"><a href="../">持股水位</a><a class="on" href="./">籌碼儀錶板</a></nav>
+      </div>
+    </div>
+    <div class="banner-status">
+      <span class="pulse"></span>
+      <div>
+        <div class="banner-status-line">系統自動更新</div>
+        <div class="banner-status-sub">週一至五 14:00–18:00 每 15 分鐘，另於 21:05 更新</div>
+      </div>
+    </div>
+  </div>
+  <div class="feeds" id="feeds" aria-label="各資料來源更新狀態"></div>
+</header>
+
+<main>
+
+  <section class="band">
+    <div class="eyebrow-row">
+      <p class="eyebrow">MARKET POSITIONING</p>
+      <span class="date-tag" id="today-date">—</span>
+    </div>
+    <h2 class="band-title">台股籌碼總覽</h2>
+    <div id="summary" class="summary-grid"></div>
+  </section>
+
+  <section class="band">
+    <div class="band-head">
+      <div class="ctrl-left">
+        <label class="ctrl-label" for="win-select">觀察區間</label>
+        <select id="win-select" class="select">
+          <option value="5">近 5 日</option>
+          <option value="10" selected>近 10 日</option>
+          <option value="20">近 20 日</option>
+        </select>
+      </div>
+      <div class="switch" id="cat-switch" role="group" aria-label="資料類別">
+        <button data-cat="flow" class="on">法人買賣超</button>
+        <button data-cat="margin">融資餘額</button>
+        <button data-cat="oi">未平倉餘額</button>
+      </div>
+    </div>
+    <p class="eyebrow" id="chart-eyebrow">INSTITUTIONAL FLOW</p>
+    <h2 class="band-title" id="chart-title">近 10 日上市櫃法人買賣超</h2>
+    <div id="charts" class="charts"></div>
+  </section>
+
+  <section class="band">
+    <div class="band-head">
+      <div>
+        <p class="eyebrow">PERIOD DETAIL</p>
+        <h2 class="band-title">逐日明細</h2>
+      </div>
+      <span class="unit-note">買賣超單位：億元　融資餘額：億元　未平倉：口</span>
+    </div>
+    <div class="scroller">
+      <table class="grid" id="detail">
+        <thead>
+          <tr>
+            <th rowspan="2" class="c-date">日期</th>
+            <th colspan="3" class="grp g-flow">上市買賣超</th>
+            <th colspan="3" class="grp g-flow">上櫃買賣超</th>
+            <th colspan="4" class="grp g-margin">融資餘額</th>
+            <th rowspan="2" class="grp g-oi">台指期<br>外資淨額</th>
+          </tr>
+          <tr>
+            <th>外資</th><th>投信</th><th>自營</th>
+            <th>外資</th><th>投信</th><th>自營</th>
+            <th>上市餘額</th><th>上市增減</th><th>上櫃餘額</th><th>上櫃增減</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="source-note">
+      資料來源：上市取自證交所 BFI82U，上櫃取自櫃買中心 OpenAPI（<code>insti/summary</code>）。
+      上櫃三大法人買賣金額<b>包含鉅額交易</b>，跟 XQ 全球贏家等看盤軟體常見的三大法人數字會有落差——
+      那類軟體多半<b>不計入鉅額交易</b>。另外櫃買中心這份報表一天會產製兩次，
+      收盤後較早查到的數字可能還沒納入當天全部的鉅額交易，本站排程特別在 19:45／19:50、21:05／21:10
+      多抓幾次，抓到的是較晚、已定案的版本；若在盤後很短時間內查看，數字仍有可能是尚未定案的版本。
+    </p>
+  </section>
+
+  <section class="band">
+    <div class="band-head">
+      <div>
+        <p class="eyebrow">TOP INSTITUTIONAL PICKS</p>
+        <h2 class="band-title">個股買賣超排行</h2>
+      </div>
+      <div class="switch-row">
+        <div class="switch" id="who-switch" role="group" aria-label="法人">
+          <button data-who="f" class="on">外資</button>
+          <button data-who="t">投信</button>
+        </div>
+        <div class="switch" id="rank-switch" role="group" aria-label="累計天數">
+          <button data-w="1" class="on">1 日</button>
+          <button data-w="3">3 日</button>
+          <button data-w="5">5 日</button>
+          <button data-w="10">10 日</button>
+          <button data-w="20">20 日</button>
+        </div>
+      </div>
+    </div>
+    <p class="note" id="rank-note"></p>
+    <div class="ranks">
+      <div class="rank-col">
+        <h3 class="rank-head buy">買超前 20 名</h3>
+        <table class="rank-table">
+          <thead><tr><th class="rk">排名</th><th class="nm">代號／股名</th><th class="amt">金額（億元）</th></tr></thead>
+          <tbody id="rank-buy"></tbody>
+        </table>
+      </div>
+      <div class="rank-col">
+        <h3 class="rank-head sell">賣超前 20 名</h3>
+        <table class="rank-table">
+          <thead><tr><th class="rk">排名</th><th class="nm">代號／股名</th><th class="amt">金額（億元）</th></tr></thead>
+          <tbody id="rank-sell"></tbody>
+        </table>
+      </div>
+    </div>
+    <details class="method">
+      <summary>買賣超金額怎麼算的？</summary>
+      <p>
+        證交所與櫃買中心的官方個股報表只公布<b>買賣超股數</b>，沒有金額欄位。
+        這裡的金額 = 買賣超股數 ×「當日成交均價」，均價取自同一交易日的收盤行情，
+        以<b>成交金額 ÷ 成交股數</b>求得，因此是估算值而非逐筆成交價加總。
+        與聚財網等來源比對過，方向與量級一致；少數金額很接近的個股，名次可能會有一兩名的落差，
+        屬於這個估算方法本身的誤差範圍。
+      </p>
+    </details>
+  </section>
+
+</main>
+
+<footer>
+  <p>資料來源：臺灣證券交易所、證券櫃檯買賣中心、臺灣期貨交易所。個股買賣超金額由官方公布之買賣超股數乘上當日成交均價估算，與券商系統會有些微差異。</p>
+  <p id="built">—</p>
+</footer>
+
+<div id="tip" class="tip" role="tooltip" aria-hidden="true"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

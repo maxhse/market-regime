@@ -345,6 +345,19 @@ def scenarios_v3(f, R, fwd_base):
         ev = (c < f["ma20"]) & (c.shift(1) >= f["ma20"].shift(1)) & ~below
         out.append({"key": "B", "name": "警戒", "tone": "neutral", "cond": f"收盤跌破月線（約 {fnum(lv20)}）",
                     "meaning": "短線轉弱，季線仍在下方支撐", "action": "水位不變，留意是否續跌破季線", "stats": event_stats(ev, fwd_base)})
+        if rr.below or r.close < r.ma20:   # 多頭回檔中：顯示回檔品質
+            oi = f["fut_oi"].iloc[-1] if "fut_oi" in f and pd.notna(f["fut_oi"].iloc[-1]) else None
+            bd = (f["above_ma60"].iloc[-1] - f["above_ma60"].iloc[-11]) if "above_ma60" in f and f["above_ma60"].notna().iloc[-1] else None
+            flags = []
+            if oi is not None:
+                flags.append(f"外資台指期{'淨空' if oi < 0 else '淨多'} {fnum(abs(oi))} 口{'（警示）' if oi < 0 else ''}")
+            if bd is not None:
+                flags.append(f"站上 60 日線的個股比例 10 日{'下降' if bd < 0 else '上升'} {fnum(abs(bd) * 100)} 個百分點{'（警示）' if bd <= -0.10 else ''}")
+            nwarn = sum("警示" in x for x in flags)
+            out.append({"key": "D", "name": "回檔品質", "tone": "bear" if nwarn else "neutral",
+                        "cond": "；".join(flags) if flags else "缺少外資期貨與廣度資料",
+                        "meaning": "2015–2024 共 46 次多頭回檔，34 次回到前高（中位數 9 天）；兩項警示都出現時 4 次有 2 次轉空，都沒有時 24 次有 2 次",
+                        "action": "水位不變；警示越多，越要留意是否跌破季線", "stats": {}})
         if "above_ma60" in f and f["above_ma60"].notna().any():
             ev = (c >= c.rolling(60).max()) & (f["above_ma60"] < 0.5)
             out.append({"key": "C", "name": "廣度背離", "tone": "neutral", "cond": "指數創 60 日新高，但站上 60 日線的個股不到一半",
@@ -442,6 +455,19 @@ def main():
             s_ = pd.read_csv(sx, parse_dates=["date"]).set_index("date")["sox"]
             s_.index = s_.index + pd.Timedelta(days=1)
             data["external"] = pd.DataFrame({"sox": s_.reindex(tw.index.union(s_.index)).ffill().reindex(tw.index)})
+    chip_date = None
+    daily_dir = ROOT / "data" / "daily"
+    if public_mode and daily_dir.exists():   # 籌碼儀錶板每日抓的官方資料：上市融資餘額、外資台指期未平倉
+        rows = []
+        for p_ in sorted(daily_dir.glob("*.json")):
+            r_ = json.loads(p_.read_text(encoding="utf-8"))
+            rows.append({"date": p_.stem, "twse_margin": (r_.get("twse_margin") or {}).get("balance"),
+                         "oi": (r_.get("taifex_tx") or {}).get("net_oi_lots")})
+        if rows:
+            cd = pd.DataFrame(rows).assign(date=lambda x: pd.to_datetime(x["date"])).set_index("date").sort_index()
+            data["margin"] = pd.DataFrame({"twse_margin": cd["twse_margin"] / 1e8}).dropna()
+            data["futures"] = pd.DataFrame({"foreign_tx_net_oi": cd["oi"]}).dropna()
+            chip_date = str(cd.dropna(how="all").index[-1].date())
     if "taiex" not in data or len(data["taiex"]) < 80:
         base.update({"status": "no_data", "message": "尚未放入 taiex.csv（至少需要 80 個交易日）"})
         if OUT.exists() and '"status": "ok"' in OUT.read_text(encoding="utf-8"):
@@ -489,12 +515,15 @@ def main():
                                        ensure_ascii=False, indent=1), encoding="utf-8")
         ctx_date = None
     else:
-        sigs = [x for x in sigs if x["cat"] in PRICE_CATS]
-        catd = {k: v for k, v in catd.items() if k in PRICE_CATS}
+        fresh_ids = {"C1", "C4"} if chip_date else set()      # 由每日籌碼資料即時算出的訊號
+        fresh_cats = PRICE_CATS + (("籌碼",) if chip_date else ())
+        sigs = [x for x in sigs if x["cat"] in PRICE_CATS or x["id"] in fresh_ids]
+        catd = {k: v for k, v in catd.items() if k in fresh_cats}
         ctx_date = None
         if ctx_path.exists():
             ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
-            sigs += ctx["signals"]; catd.update(ctx["categories"]); ctx_date = ctx["as_of"]
+            sigs += [x for x in ctx["signals"] if x["cat"] not in fresh_cats]
+            catd.update({k: v for k, v in ctx["categories"].items() if k not in fresh_cats}); ctx_date = ctx["as_of"]
 
     hist = pd.DataFrame({"close": f["close"], "tier": tiers, "score": score}).dropna().tail(500)
     base.update({
@@ -506,7 +535,7 @@ def main():
         "regime": {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}[tier], "score": round(sc, 3),
         "rule": {"ma60": round(float(R["ma"].iloc[-1]), 0), "slope": slope_lab, "streak": int(R["streak"].iloc[-1]),
                  "side": "下" if bool(R["below"].iloc[-1]) else "上"},
-        "context_date": ctx_date,
+        "context_date": ctx_date, "chip_date": chip_date,
         "state": {"name": cur_state, "days": since, "ladder": ladder},
         "categories": catd,
         "signals": sigs,

@@ -1,11 +1,29 @@
 name: daily
 on:
   schedule:
-    - cron: "40 6 * * 1-5"    # 台北 14:40（收盤後）
-    - cron: "10 11 * * 1-5"   # 台北 19:10（補抓）
+    # 台北時間週一至週五 14:32–18:32 每 15 分鐘（cron 為 UTC）
+    - cron: "32,47 6 * * 1-5"
+    - cron: "2,17,32,47 7-9 * * 1-5"
+    - cron: "2,17,32 10 * * 1-5"
+    # 台北 21:10：融資餘額更新後的最後一次
+    - cron: "10 13 * * 1-5"
   workflow_dispatch:
+    inputs:
+      backfill:
+        description: "籌碼資料回補幾個日曆日（留白＝不回補，只做一般更新）"
+        required: false
+        default: ""
+      force:
+        description: "強制重算已存在的籌碼資料"
+        required: false
+        type: boolean
+        default: false
+      force_fields:
+        description: "強制重算時只動哪些欄位，空白代表全部（例：twse_insti tpex_insti）"
+        required: false
+        default: ""
   push:
-    paths: ["engine/**", ".github/workflows/daily.yml"]
+    paths: ["engine/**", "chip/**", ".github/workflows/daily.yml"]
 permissions:
   contents: write
 concurrency:
@@ -18,13 +36,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install -r requirements.txt
-      - run: python engine/fetch_public.py
-      - run: python engine/build.py
-      - run: |
+      - run: pip install --quiet -r requirements.txt requests certifi
+      - name: 籌碼：回補歷史（僅手動觸發且有填天數時）
+        if: inputs.backfill != ''
+        run: python chip/backfill.py "${{ inputs.backfill }}" ${{ inputs.force && '--force' || '' }} ${{ inputs.force_fields }}
+      - name: 籌碼：抓取最新資料
+        run: python chip/update.py || echo "籌碼來源全部失敗，沿用既有資料"
+      - name: 籌碼：產出 dashboard.json
+        run: python chip/build.py
+      - name: 指數：加權、費半
+        run: python engine/fetch_public.py || echo "指數抓取失敗，沿用既有資料"
+      - name: 水位：產出 latest.json
+        run: python engine/build.py
+      - name: 提交變更
+        run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add data/public docs/latest.json
-          git diff --cached --quiet || git commit -m "每日更新 $(TZ=Asia/Taipei date +%F)"
+          git add data/public data/daily data/status.json docs
+          git diff --cached --quiet || git commit -m "資料更新 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
           git pull -q --rebase origin main
           git push

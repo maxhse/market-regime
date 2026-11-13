@@ -3,6 +3,10 @@
 每日收盤後依大盤量價、籌碼、廣度、恐慌與外部指標，給出整體持股水位建議（0–100%）與明日劇本。
 
 - 網站：`docs/`（GitHub Pages，來源設為 main 分支的 /docs）
+  - `docs/index.html`：持股水位、盤勢狀態、劇本
+  - `docs/chip/`：法人籌碼儀錶板（由原 chip-dashboard 併入）
+- 籌碼資料：`chip/` 抓證交所、櫃買、期交所 → `data/daily/` → `docs/chip/data/dashboard.json`
+- 每日更新：`.github/workflows/daily.yml`（籌碼 → 指數 → 水位），可用 workflow_dispatch 觸發
 - 資料：把 CSV 放進 `data/raw/`，規格見 [data/README.md](data/README.md)
 - 引擎：`engine/build.py` 讀資料 → 輸出 `docs/latest.json`
 - 自動化：推送 `data/raw/` 後，GitHub Actions 會重算並更新網站
