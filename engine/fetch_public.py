@@ -41,6 +41,29 @@ def fetch(name, sources, cols):
     return False
 
 
+def twse_topup():
+    """用證交所官方的當月、上月日線補上 Yahoo 還沒更新的交易日。失敗不影響其餘流程。"""
+    path = PUB / "twii.csv"
+    rows = {r[0]: r for r in csv.reader(open(path)) if r and r[0] != "date"}
+    now = datetime.now(timezone(timedelta(hours=8)))
+    added = 0
+    for m in (now.replace(day=1) - timedelta(days=1), now):
+        try:
+            j = json.loads(get(f"https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST?date={m:%Y%m}01&response=json"))
+            for d, o, h, l, c in j.get("data", []):
+                y, mo, da = d.strip().split("/")
+                key = f"{int(y) + 1911}-{mo}-{da}"
+                added += key not in rows
+                rows[key] = [key] + [round(float(x.replace(",", "")), 2) for x in (o, h, l, c)]
+        except Exception as e:  # noqa: BLE001
+            print(f"twse {m:%Y-%m} failed: {e}")
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f); w.writerow(["date", "open", "high", "low", "close"]); w.writerows(rows[k] for k in sorted(rows))
+    print(f"twii ← twse 官方補 {added} 天，最新 {max(rows)}")
+
+
 ok1 = fetch("twii", [("yahoo", lambda: yahoo("%5ETWII", 8)), ("stooq", lambda: stooq("^twse"))], ["open", "high", "low", "close"])
 ok2 = fetch("sox", [("yahoo", lambda: yahoo("%5ESOX", -5)), ("stooq", lambda: stooq("^sox"))], ["sox"])
+if ok1:
+    twse_topup()
 sys.exit(0 if ok1 else 1)
