@@ -1,45 +1,45 @@
 {
- "_checked_at": "2026-11-13T22:51:38+08:00",
+ "_checked_at": "2026-11-13T23:07:16+08:00",
  "stock_flows": {
   "data_date": "2026-11-13",
   "error": null,
   "label": "個股買賣超排行",
   "ok": true,
-  "updated_at": "2026-11-13T22:51:38+08:00"
+  "updated_at": "2026-11-13T23:07:16+08:00"
  },
  "taifex_tx": {
   "data_date": "2026-11-13",
   "error": null,
   "label": "台指期外資未平倉",
   "ok": true,
-  "updated_at": "2026-11-13T22:51:28+08:00"
+  "updated_at": "2026-11-13T23:07:09+08:00"
  },
  "tpex_insti": {
   "data_date": "2026-11-13",
   "error": null,
   "label": "櫃買三大法人",
   "ok": true,
-  "updated_at": "2026-11-13T22:51:25+08:00"
+  "updated_at": "2026-11-13T23:07:08+08:00"
  },
  "tpex_margin": {
   "data_date": "2026-11-13",
   "error": null,
   "label": "上櫃融資餘額",
   "ok": true,
-  "updated_at": "2026-11-13T22:51:28+08:00"
+  "updated_at": "2026-11-13T23:07:09+08:00"
  },
  "twse_insti": {
   "data_date": "2026-11-13",
   "error": null,
   "label": "證交所三大法人",
   "ok": true,
-  "updated_at": "2026-11-13T22:51:23+08:00"
+  "updated_at": "2026-11-13T23:07:07+08:00"
  },
  "twse_margin": {
   "data_date": "2026-11-13",
   "error": null,
   "label": "上市融資餘額",
   "ok": true,
-  "updated_at": "2026-11-13T22:51:25+08:00"
+  "updated_at": "2026-11-13T23:07:08+08:00"
  }
 }
