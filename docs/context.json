@@ -1,0 +1,91 @@
+{
+ "as_of": "2026-11-11",
+ "signals": [
+  {
+   "cat": "籌碼",
+   "id": "C1",
+   "name": "融資 vs 指數",
+   "score": 1.0,
+   "state": "bull",
+   "detail": "融資減、指數漲：籌碼沉澱（融資 5 日 -9.3%、指數 5 日 3.0%）",
+   "value": null
+  },
+  {
+   "cat": "籌碼",
+   "id": "C2",
+   "name": "融資占市值",
+   "score": 0.0,
+   "state": "neutral",
+   "detail": "位於近一年 60 百分位",
+   "value": null
+  },
+  {
+   "cat": "籌碼",
+   "id": "C3",
+   "name": "外資現貨 10 日",
+   "score": -1.0,
+   "state": "bear",
+   "detail": "10 日累積買賣超占成交額 -7.57%（z=-2.7）",
+   "value": null
+  },
+  {
+   "cat": "籌碼",
+   "id": "C4",
+   "name": "外資台指期",
+   "score": -1.0,
+   "state": "bear",
+   "detail": "淨未平倉 -104,271 口，5 日變化 -10,624 口",
+   "value": null
+  },
+  {
+   "cat": "廣度",
+   "id": "B1",
+   "name": "漲跌家數",
+   "score": -1.0,
+   "state": "bear",
+   "detail": "10 日上漲家數比例 36.3%",
+   "value": null
+  },
+  {
+   "cat": "廣度",
+   "id": "B2",
+   "name": "櫃買 vs 權值",
+   "score": -1.0,
+   "state": "bear",
+   "detail": "櫃買 20 日相對加權扣台積電 -6.2%",
+   "value": null
+  },
+  {
+   "cat": "恐慌",
+   "id": "P1",
+   "name": "恐慌爆量",
+   "score": 0.0,
+   "state": "neutral",
+   "detail": "成交金額 z=0.0",
+   "value": null
+  },
+  {
+   "cat": "恐慌",
+   "id": "P2",
+   "name": "爆量長下影線",
+   "score": 0.0,
+   "state": "neutral",
+   "detail": "未出現",
+   "value": null
+  },
+  {
+   "cat": "恐慌",
+   "id": "P3",
+   "name": "跌停家數",
+   "score": 0.0,
+   "state": "neutral",
+   "detail": "上市櫃跌停 7 家（z=-0.1）",
+   "value": null
+  }
+ ],
+ "categories": {
+  "籌碼": -0.25,
+  "廣度": -1.0,
+  "恐慌": 0.0
+ }
+}

@@ -119,7 +119,7 @@ function hero(j){
       <div class="gauge-l mono"><span>0</span><span>30</span><span>50</span><span>70</span><span>100</span></div>
       <div class="kv"><span>${chg}</span>
         <span>加權收盤 <b class="mono">${fmt(j.close)}</b> <span class="mono" style="color:${C(j.change_pct)}">${j.change_pct>0?'+':''}${fmt(j.change_pct,2)}%</span></span>
-        <span>綜合分數 <b class="mono">${fmt(j.score,2)}</b></span></div>
+        ${j.rule?`<span>季線 <b class="mono">${fmt(j.rule.ma60)}</b>（${j.rule.slope}）</span><span>已連續 <b class="mono">${j.rule.streak}</b> 天收在季線${j.rule.side}</span>`:''}</div>
     </div></div>`;
 }
 
@@ -131,7 +131,7 @@ function cats(j){
     const pos = v>=0 ? `bottom:50%;height:${h}%` : `top:50%;height:${h}%`;
     return `<div class="cat"><div class="bar"><i style="${pos};background:${C(v)}"></i></div>${k}<div class="mono" style="color:${C(v)}">${v>0?'+':''}${fmt(v,2)}</div></div>`;
   }).join('');
-  return `<div class="card"><h2>盤勢解讀：五大面向分數（−1 偏空 ～ +1 偏多，不影響水位）</h2><div class="cats">${items}</div></div>`;
+  return `<div class="card"><h2>盤勢解讀：五大面向分數（−1 偏空 ～ +1 偏多，不影響水位）${j.context_date?`　籌碼、廣度、恐慌為 ${j.context_date} 的資料`:''}</h2><div class="cats">${items}</div></div>`;
 }
 
 function signals(j){
