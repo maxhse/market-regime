@@ -6,7 +6,9 @@
   - `docs/index.html`：持股水位、盤勢狀態、劇本
   - `docs/chip/`：法人籌碼儀錶板（由原 chip-dashboard 併入）
 - 籌碼資料：`chip/` 抓證交所、櫃買、期交所 → `data/daily/` → `docs/chip/data/dashboard.json`
-- 每日更新：`.github/workflows/daily.yml`（籌碼 → 指數 → 水位），可用 workflow_dispatch 觸發
+- 市場資料：`engine/market.py` 抓證交所、櫃買、期交所公開資料（個股收盤、漲跌家數、報酬指數、櫃買指數、成交金額、除權息、P/C ratio）→ `data/market/`，彙整成 `data/public/market.csv`
+- 每日更新：`.github/workflows/daily.yml`（籌碼 → 指數 → 市場 → 水位），可用 workflow_dispatch 觸發
+- 歷史回補：`.github/workflows/backfill.yml`，每小時跑 50 分鐘，由新到舊補到 2014 年，補完自動停止
 - 資料：把 CSV 放進 `data/raw/`，規格見 [data/README.md](data/README.md)
 - 引擎：`engine/build.py` 讀資料 → 輸出 `docs/latest.json`
 - 自動化：推送 `data/raw/` 後，GitHub Actions 會重算並更新網站

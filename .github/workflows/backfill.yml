@@ -1,0 +1,34 @@
+name: backfill
+# 由新到舊回補 2014 年起的公開市場資料。每次最多跑 50 分鐘，可重複執行、自動接續；補完後就不再有動作。
+on:
+  workflow_dispatch:
+  push:
+    paths: ["engine/market.py", ".github/workflows/backfill.yml"]
+  schedule:
+    - cron: "5 * * * *"
+permissions:
+  contents: write
+concurrency:
+  group: daily
+  cancel-in-progress: false
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install --quiet -r requirements.txt
+      - name: 回補
+        run: python engine/market.py backfill 50
+      - name: 重算網站
+        run: python engine/build.py
+      - name: 提交
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data/market data/public docs
+          git diff --cached --quiet || git commit -m "回補市場資料 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+          git pull -q --rebase origin main
+          git push

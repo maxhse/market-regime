@@ -455,6 +455,22 @@ def main():
             s_ = pd.read_csv(sx, parse_dates=["date"]).set_index("date")["sox"]
             s_.index = s_.index + pd.Timedelta(days=1)
             data["external"] = pd.DataFrame({"sox": s_.reindex(tw.index.union(s_.index)).ffill().reindex(tw.index)})
+        mk = ROOT / "data" / "public" / "market.csv"   # 證交所、櫃買公開資料彙整（engine/market.py）
+        if mk.exists():
+            m_ = pd.read_csv(mk, parse_dates=["date"]).set_index("date").sort_index()
+            tw["turnover"] = m_["turnover"].reindex(tw.index)
+            data["taiex"] = tw
+            if m_["tr"].notna().sum() > 80:
+                data["taiex_tr"] = pd.DataFrame({"close": m_["tr"]}).dropna()
+            if m_["tpex_close"].notna().sum() > 80:
+                tc = m_["tpex_close"].dropna()
+                data["tpex"] = pd.DataFrame({"open": tc, "high": tc, "low": tc, "close": tc, "turnover": np.nan})
+            if m_["above_ma60"].notna().sum() > 0:
+                data["breadth"] = m_[["n", "up", "down", "limit_up", "limit_down", "above_ma60", "new_high", "new_low"]]
+            ts_ = ROOT / "data" / "public" / "tsmc.csv"
+            if ts_.exists():
+                data["tsmc"] = pd.read_csv(ts_, parse_dates=["date"]).set_index("date")
+    market_date = str(data["breadth"].dropna(how="all").index[-1].date()) if public_mode and "breadth" in data else None
     chip_date = None
     daily_dir = ROOT / "data" / "daily"
     if public_mode and daily_dir.exists():   # 籌碼儀錶板每日抓的官方資料：上市融資餘額、外資台指期未平倉
@@ -468,6 +484,10 @@ def main():
             data["margin"] = pd.DataFrame({"twse_margin": cd["twse_margin"] / 1e8}).dropna()
             data["futures"] = pd.DataFrame({"foreign_tx_net_oi": cd["oi"]}).dropna()
             chip_date = str(cd.dropna(how="all").index[-1].date())
+    if public_mode and "futures" in data and (ROOT / "data" / "public" / "market.csv").exists():
+        pc_ = pd.read_csv(ROOT / "data" / "public" / "market.csv", parse_dates=["date"]).set_index("date").get("pc_ratio")
+        if pc_ is not None and pc_.notna().sum() > 60:
+            data["futures"]["pc_ratio"] = pc_.reindex(data["futures"].index.union(pc_.index))
     if "taiex" not in data or len(data["taiex"]) < 80:
         base.update({"status": "no_data", "message": "尚未放入 taiex.csv（至少需要 80 個交易日）"})
         if OUT.exists() and '"status": "ok"' in OUT.read_text(encoding="utf-8"):
@@ -516,8 +536,8 @@ def main():
         ctx_date = None
     else:
         fresh_ids = {"C1", "C4"} if chip_date else set()      # 由每日籌碼資料即時算出的訊號
-        fresh_cats = PRICE_CATS + (("籌碼",) if chip_date else ())
-        sigs = [x for x in sigs if x["cat"] in PRICE_CATS or x["id"] in fresh_ids]
+        fresh_cats = PRICE_CATS + (("籌碼",) if chip_date else ()) + (("廣度", "恐慌") if market_date else ())
+        sigs = [x for x in sigs if x["cat"] in PRICE_CATS or x["id"] in fresh_ids or (market_date and x["cat"] in ("廣度", "恐慌"))]
         catd = {k: v for k, v in catd.items() if k in fresh_cats}
         ctx_date = None
         if ctx_path.exists():
@@ -535,7 +555,7 @@ def main():
         "regime": {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}[tier], "score": round(sc, 3),
         "rule": {"ma60": round(float(R["ma"].iloc[-1]), 0), "slope": slope_lab, "streak": int(R["streak"].iloc[-1]),
                  "side": "下" if bool(R["below"].iloc[-1]) else "上"},
-        "context_date": ctx_date, "chip_date": chip_date,
+        "context_date": None if market_date else ctx_date, "chip_date": chip_date, "market_date": market_date,
         "state": {"name": cur_state, "days": since, "ladder": ladder},
         "categories": catd,
         "signals": sigs,
