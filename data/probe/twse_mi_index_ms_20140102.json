@@ -1,0 +1,21 @@
+{
+ "url": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json&type=MS&date=20140102",
+ "status": 200,
+ "kind": "json",
+ "len": 1465,
+ "body": {
+  "tables": {
+   "_len": 10,
+   "head": [
+    {},
+    {},
+    {},
+    {}
+   ],
+   "last": {}
+  },
+  "type": "MS",
+  "stat": "OK",
+  "date": "20140102"
+ }
+}
