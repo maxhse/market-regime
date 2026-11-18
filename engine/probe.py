@@ -33,29 +33,24 @@ def summarize(raw):
     return {"kind": "json", "len": len(raw), "body": cut(j)}
 
 
-PROBES = {
-    "twse_mi_index_all_20261117": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json&type=ALLBUT0999&date=20261117",
-    "twse_mi_index_ms_20261117": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json&type=MS&date=20261117",
-    "twse_mi_index_ind_20261117": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json&type=IND&date=20261117",
-    "twse_mi_index_all_20140102": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json&type=ALLBUT0999&date=20140102",
-    "twse_mi_index_ms_20140102": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json&type=MS&date=20140102",
-    "twse_fmtqik_201401": "https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK?response=json&date=20140101",
-    "twse_fmtqik_202611": "https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK?response=json&date=20261101",
-    "twse_mfi94u_202611": "https://www.twse.com.tw/rwd/zh/TAIEX/MFI94U?response=json&date=20261101",
-    "twse_mfi94u_201401": "https://www.twse.com.tw/rwd/zh/TAIEX/MFI94U?response=json&date=20140101",
-    "twse_twt49u_2026": "https://www.twse.com.tw/rwd/zh/exRight/TWT49U?response=json&startDate=20260101&endDate=20261117",
-    "twse_twt49u_2014": "https://www.twse.com.tw/rwd/zh/exRight/TWT49U?response=json&startDate=20140101&endDate=20141231",
-    "twse_t187ap03_L": "https://openapi.twse.com.tw/v1/opendata/t187ap03_L",
-    "tpex_otc_20261117": "https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date=2026/11/17&type=EW&response=json",
-    "tpex_otc_20140102": "https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date=2014/01/02&type=EW&response=json",
-    "tpex_exdailyq_2026": "https://www.tpex.org.tw/www/zh-tw/bulletin/exDailyQ?startDate=2026/01/01&endDate=2026/11/17&response=json",
-    "tpex_openapi_index": "https://www.tpex.org.tw/openapi/v1/tpex_index",
-    "tpex_index_hist_a": "https://www.tpex.org.tw/www/zh-tw/indexInfo/inx?date=2026/10/01&response=json",
-    "tpex_index_hist_b": "https://www.tpex.org.tw/www/zh-tw/indexInfo/historical?date=2026/10/01&response=json",
-    "tpex_index_hist_c": "https://www.tpex.org.tw/www/zh-tw/afterTrading/highlight?date=2026/11/17&response=json",
-    "tpex_index_hist_d": "https://www.tpex.org.tw/www/zh-tw/indexInfo/index?date=2026/10/01&response=json",
+PROBES = {}
+RAW = {
+    "raw_twse_mi_index_all_20261117": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json&type=ALLBUT0999&date=20261117",
+    "raw_twse_mi_index_all_20150824": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json&type=ALLBUT0999&date=20150824",
+    "raw_tpex_otc_20261117": "https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date=2026/11/17&type=EW&response=json",
+    "raw_tpex_otc_20150824": "https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date=2015/08/24&type=EW&response=json",
+    "raw_tpex_highlight_20150824": "https://www.tpex.org.tw/www/zh-tw/afterTrading/highlight?date=2015/08/24&response=json",
+    "raw_tpex_highlight_20261117": "https://www.tpex.org.tw/www/zh-tw/afterTrading/highlight?date=2026/11/17&response=json",
+    "raw_tpex_inx_201401": "https://www.tpex.org.tw/www/zh-tw/indexInfo/inx?date=2014/01/01&response=json",
 }
-
+for name, url in RAW.items():
+    try:
+        st, raw = get(url)
+        (OUT / f"{name}.json").write_bytes(raw)
+        print(name, st, len(raw))
+    except Exception as e:  # noqa: BLE001
+        print(name, "ERR", repr(e)[:300])
+    time.sleep(4)
 for name, url in PROBES.items():
     try:
         st, raw = get(url)
@@ -66,7 +61,7 @@ for name, url in PROBES.items():
     print(name, res.get("status"), res.get("kind"), res.get("len"), res.get("error", ""))
     time.sleep(4)
 
-for name, (s, e) in {"taifex_pcratio_202611": ("2026/11/01", "2026/11/17"), "taifex_pcratio_201401": ("2014/01/01", "2014/01/29")}.items():
+for name, (s, e) in {}.items():
     try:
         st, raw = get("https://www.taifex.com.tw/cht/3/pcRatioDown", {"queryStartDate": s, "queryEndDate": e})
         res = {"status": st, "kind": "csv", "len": len(raw), "head": raw.decode("cp950", errors="replace")[:800]}
