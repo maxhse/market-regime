@@ -187,11 +187,17 @@ def load_day(ds: str) -> dict | None:
 
 
 def get_day(d: date) -> bool:
+    from concurrent.futures import ThreadPoolExecutor
     ds = f"{d:%Y-%m-%d}"
-    tw = twse_day(d)
+    with ThreadPoolExecutor(2) as ex:
+        ftw, ftp = ex.submit(twse_day, d), ex.submit(tpex_day, d)
+        tw = ftw.result()
+        try:
+            tp = ftp.result()
+        except Exception:  # noqa: BLE001
+            tp = None
     if tw is None:
         return False
-    tp = tpex_day(d)
     save_day(ds, {"date": ds, "twse": tw, "tpex": tp or {}})
     return True
 
@@ -273,7 +279,7 @@ def write_csv(p: Path, rows: dict, fields: list[str]):
 
 
 def merge_monthly(name: str, fn, months: list[date], field: str):
-    p = MKT / f"{name}.csv"
+    p = MKT / f"{name}.csv"   # 回補用 name="xxx_hist"，與每日更新的檔案分開
     rows = read_csv(p)
     for m in months:
         for ds, v in fn(m).items():
@@ -345,11 +351,11 @@ def backfill(minutes: float):
     try:
         if not flags.get("monthly"):
             ms = months_between(first, today)[::-1]
-            merge_monthly("turnover", fmtqik_month, ms, "turnover")
-            merge_monthly("tpex_index", tpex_index_month, ms, "tpex_index")
+            merge_monthly("turnover_hist", fmtqik_month, ms, "turnover")
+            merge_monthly("tpex_index_hist", tpex_index_month, ms, "tpex_index")
             flags["monthly"] = True
         if not flags.get("exright"):
-            p = MKT / "exright.csv"
+            p = MKT / "exright_hist.csv"
             rows = read_csv(p, ("date", "code"))
             for y in range(today.year, first.year - 1, -1):
                 for r in exrights(date(y, 1, 1), min(date(y, 12, 31), today)):
@@ -357,7 +363,7 @@ def backfill(minutes: float):
             write_csv(p, rows, ["date", "code", "before", "ref"])
             flags["exright"] = True
         if not flags.get("pcratio"):
-            p = MKT / "pcratio.csv"
+            p = MKT / "pcratio_hist.csv"
             rows = read_csv(p)
             s = today
             while s > first:
@@ -370,10 +376,11 @@ def backfill(minutes: float):
     finally:
         done.write_text(json.dumps(flags))
     n = 0
+    recent = f"{today - timedelta(days=15):%Y-%m-%d}"   # 最近 15 天交給每日更新
     for d in reversed(trading_days(f"{first:%Y-%m-%d}")):
         if time.time() - t0 > minutes * 60:
             break
-        if day_path(f"{d:%Y-%m-%d}").exists():
+        if f"{d:%Y-%m-%d}" >= recent or day_path(f"{d:%Y-%m-%d}").exists():
             continue
         try:
             get_day(d)
@@ -383,7 +390,7 @@ def backfill(minutes: float):
             break
         except Exception as e:  # noqa: BLE001
             print(d, "失敗", repr(e)[:200])
-    left = sum(1 for d in trading_days(f"{first:%Y-%m-%d}") if not day_path(f"{d:%Y-%m-%d}").exists())
+    left = sum(1 for d in trading_days(f"{first:%Y-%m-%d}") if f"{d:%Y-%m-%d}" < recent and not day_path(f"{d:%Y-%m-%d}").exists())
     print(f"本次回補 {n} 天，尚缺 {left} 天，用時 {(time.time() - t0) / 60:.0f} 分鐘")
 
 
@@ -412,10 +419,15 @@ def build():
     m.index = pd.to_datetime(m.index)
 
     # 還原權息（向後調整）：除權息日之前的價格乘上 參考價／除權息前收盤價
-    ex = MKT / "exright.csv"
+    def both(name, **kw):
+        fs = [MKT / f"{name}.csv", MKT / f"{name}_hist.csv"]
+        fs = [pd.read_csv(f, **kw) for f in fs if f.exists()]
+        return pd.concat(fs) if fs else None
+
     adj = px.copy()
-    if ex.exists():
-        e = pd.read_csv(ex, dtype={"code": str}, parse_dates=["date"]).dropna(subset=["before", "ref"])
+    e = both("exright", dtype={"code": str}, parse_dates=["date"])
+    if e is not None:
+        e = e.drop_duplicates(["date", "code"]).dropna(subset=["before", "ref"])
         e = e[(e["before"] > 0) & (e["ref"] > 0) & e["code"].isin(px.columns)]
         e["f"] = (e["ref"] / e["before"]).clip(0.05, 1.5)
         fac = pd.DataFrame(1.0, index=px.index, columns=px.columns)
@@ -434,16 +446,16 @@ def build():
     m["limit_up"] = m["twse_lu"].fillna(0) + m["tpex_lu"].fillna(0)
     m["limit_down"] = m["twse_ld"].fillna(0) + m["tpex_ld"].fillna(0)
     for name, field in (("turnover", "turnover"), ("tpex_index", "tpex_index")):
-        p = MKT / f"{name}.csv"
-        if p.exists():
-            s = pd.read_csv(p, parse_dates=["date"]).set_index("date")[field]
-            m[field] = s.reindex(m.index)
+        t_ = both(name, parse_dates=["date"])
+        if t_ is not None:
+            s_ = t_.drop_duplicates("date", keep="first").set_index("date")[field]
+            m[field] = s_.reindex(m.index)
     m["turnover"] = m["turnover"] / 1e8 if "turnover" in m else np.nan   # 元 → 億
     if "tpex_index" in m:
         m["tpex_close"] = m["tpex_close"].fillna(m["tpex_index"])
-    pc = MKT / "pcratio.csv"
-    if pc.exists():
-        m["pc_ratio"] = pd.read_csv(pc, parse_dates=["date"]).set_index("date")["pc_oi"].reindex(m.index) / 100
+    pc = both("pcratio", parse_dates=["date"])
+    if pc is not None:
+        m["pc_ratio"] = pc.drop_duplicates("date").set_index("date")["pc_oi"].reindex(m.index) / 100
     cols = ["n", "up", "down", "limit_up", "limit_down", "above_ma60", "new_high", "new_low",
             "turnover", "tr", "tpex_close", "tpex_mktcap", "pc_ratio"]
     m[[c for c in cols if c in m]].round(4).to_csv(PUB / "market.csv", index_label="date", date_format="%Y-%m-%d")
@@ -457,6 +469,6 @@ if __name__ == "__main__":
     if cmd == "daily":
         daily(); build()
     elif cmd == "backfill":
-        backfill(float(sys.argv[2]) if len(sys.argv) > 2 else 50); build()
+        backfill(float(sys.argv[2]) if len(sys.argv) > 2 else 50)
     else:
         build()

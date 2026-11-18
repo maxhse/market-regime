@@ -1,34 +1,38 @@
 name: backfill
-# 由新到舊回補 2014 年起的公開市場資料。每次最多跑 50 分鐘，可重複執行、自動接續；補完後就不再有動作。
+# 由新到舊回補 2014 年起的公開市場資料（不含最近 15 天，交給每日更新）。
+# 每 40 分鐘提交一次、一次最多跑 5.5 小時，可重複執行、自動接續；補完後就不再有動作。
+# 只提交 data/market/day 與 *_hist 檔，和每日更新改的檔案完全分開，不會互相衝突。
 on:
   workflow_dispatch:
   push:
     paths: ["engine/market.py", ".github/workflows/backfill.yml"]
   schedule:
-    - cron: "5 * * * *"
+    - cron: "20 */6 * * *"
 permissions:
   contents: write
 concurrency:
-  group: daily
+  group: backfill
   cancel-in-progress: false
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install --quiet -r requirements.txt
-      - name: 回補
-        run: python engine/market.py backfill 50
-      - name: 重算網站
-        run: python engine/build.py
-      - name: 提交
+      - name: 回補（每 40 分鐘提交一次）
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add data/market data/public docs
-          git diff --cached --quiet || git commit -m "回補市場資料 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
-          git pull -q --rebase origin main
-          git push
+          for i in 1 2 3 4 5 6 7 8; do
+            python engine/market.py backfill 40 | tee /tmp/bf.log
+            git add data/market/day data/market/*_hist.csv data/market/backfill_done.json
+            if ! git diff --cached --quiet; then
+              git commit -q -m "回補市場資料 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+              for t in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && break; sleep 20; done
+            fi
+            grep -q "尚缺 0 天" /tmp/bf.log && break
+            grep -q "疑似被封鎖" /tmp/bf.log && break
+          done
