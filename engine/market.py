@@ -288,12 +288,25 @@ def merge_monthly(name: str, fn, months: list[date], field: str):
 
 
 # ---------------------------------------------------------------- 流程
+CLOSED = MKT / "closed.txt"   # 證交所查無資料的日子（例如颱風休市，但 Yahoo 日線仍列出）
+
+
+def closed_days() -> set[str]:
+    return set(CLOSED.read_text().split()) if CLOSED.exists() else set()
+
+
+def mark_closed(ds: str):
+    CLOSED.parent.mkdir(parents=True, exist_ok=True)
+    CLOSED.write_text("\n".join(sorted(closed_days() | {ds})) + "\n")
+
+
 def trading_days(since: str) -> list[date]:
-    """以加權指數日線（data/public/twii.csv）當作交易日曆，加上今天（若為平日）。"""
+    """以加權指數日線（data/public/twii.csv）當作交易日曆，加上今天（若為平日），扣掉已知休市日。"""
     days = []
+    shut = closed_days()
     with open(PUB / "twii.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            if r["date"] >= since:
+            if r["date"] >= since and r["date"] not in shut:
                 days.append(datetime.strptime(r["date"], "%Y-%m-%d").date())
     today = datetime.now(TPE).date()
     if today.weekday() < 5 and (not days or days[-1] < today):
@@ -311,10 +324,11 @@ def months_between(a: date, b: date) -> list[date]:
 
 def daily():
     today = datetime.now(TPE).date()
-    for d in trading_days(f"{today - timedelta(days=12):%Y-%m-%d}"):
+    for d in trading_days(f"{today - timedelta(days=20):%Y-%m-%d}"):
         if not day_path(f"{d:%Y-%m-%d}").exists():
             try:
-                print(d, "OK" if get_day(d) else "無資料")
+                ok = get_day(d)
+                print(d, "OK" if ok else "無資料")
             except Exception as e:  # noqa: BLE001
                 print(d, "失敗", repr(e)[:200])
     ms = months_between(today - timedelta(days=35), today)
@@ -383,8 +397,11 @@ def backfill(minutes: float):
         if f"{d:%Y-%m-%d}" >= recent or day_path(f"{d:%Y-%m-%d}").exists():
             continue
         try:
-            get_day(d)
-            n += 1
+            if get_day(d):
+                n += 1
+            else:
+                mark_closed(f"{d:%Y-%m-%d}")
+                print(d, "證交所查無資料，記為休市")
         except Blocked as e:
             print("疑似被封鎖，停止本次回補：", e)
             break

@@ -28,11 +28,11 @@ jobs:
           git config user.email "github-actions@users.noreply.github.com"
           for i in 1 2 3 4 5 6 7 8; do
             python engine/market.py backfill 40 | tee /tmp/bf.log
-            git add data/market/day data/market/*_hist.csv data/market/backfill_done.json
+            touch data/market/closed.txt; git add data/market/day data/market/*_hist.csv data/market/backfill_done.json data/market/closed.txt
             if ! git diff --cached --quiet; then
               git commit -q -m "回補市場資料 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
               for t in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && break; sleep 20; done
             fi
-            grep -q "尚缺 0 天" /tmp/bf.log && break
-            grep -q "疑似被封鎖" /tmp/bf.log && break
+            if grep -q "尚缺 0 天" /tmp/bf.log || grep -q "疑似被封鎖" /tmp/bf.log; then break; fi
           done
+          exit 0

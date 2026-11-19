@@ -55,6 +55,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git add data/public data/daily data/market/day data/market/turnover.csv data/market/tpex_index.csv data/market/exright.csv data/market/pcratio.csv data/status.json docs
+          git add data/market/closed.txt 2>/dev/null || true
           git diff --cached --quiet || git commit -m "資料更新 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
           git pull -q --rebase origin main
           git push
