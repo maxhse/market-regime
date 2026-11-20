@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 MA_LEN, N_CONFIRM, SLOPE_DAYS, SLOPE_CUT = 60, 3, 10, -0.5
+BRAKE_DROP, BRAKE_CAP = 0.10, 30   # 急跌煞車：收盤離 20 日最高收盤跌 10% 以上 → 水位上限 30%，收盤站回月線才解除
 LEVELS = {"above": 100, "below": 50, "below_down": 30}
 
 
@@ -44,6 +45,18 @@ def rule(close: pd.Series, high: pd.Series, low: pd.Series, ma_len=MA_LEN, n=N_C
     out = pd.DataFrame({"ma": ma, "slope": slope, "below": close < ma, "state": state, "streak": streak}, index=close.index)
     down = slope < SLOPE_CUT
     out["expo"] = np.where(out["state"] & down, LEVELS["below_down"], np.where(out["state"], LEVELS["below"], LEVELS["above"]))
+    # 急跌煞車（v4）：季線反應慢，急跌時先壓低上限
+    ma20 = close.rolling(20).mean()
+    dd20 = close / close.rolling(20).max() - 1
+    on, br = False, np.zeros(len(c), bool)
+    for i in range(len(c)):
+        if not on and dd20.iat[i] <= -BRAKE_DROP:
+            on = True
+        elif on and close.iat[i] > ma20.iat[i]:
+            on = False
+        br[i] = on
+    out["brake"], out["dd20"], out["ma20"] = br, dd20, ma20
+    out["expo"] = np.where(out["brake"], np.minimum(out["expo"], BRAKE_CAP), out["expo"])
     out.loc[ma.isna(), "expo"] = np.nan
     return out
 

@@ -18,17 +18,16 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
-from rule import LEVELS as RULE, N_CONFIRM, STATE_DESC, STATE_ORDER, classify, rule as apply_rule  # noqa: E402
+from rule import BRAKE_CAP, BRAKE_DROP, LEVELS as RULE, N_CONFIRM, STATE_DESC, STATE_ORDER, classify, rule as apply_rule  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "raw"
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "docs" / "latest.json"
 
-MODEL_VERSION = "v3 季線＋斜率＋3 日確認"
-MODEL_NOTE = ("水位只由加權指數的季線決定：季線上 100%、季線下 50%、季線下且季線下彎 30%；連續 3 天收在季線另一側才切換。"
-              "回測以 1.5 倍加權報酬指數模擬高 beta 持股、扣現股交易成本："
-              "開發期（2015/6–2024/12）年化 15.6%、最大回撤 -25.2%（大盤 13.8%、-28.6%）；"
-              "最終驗收（2025/1–2026/11，只跑一次）年化 68.1%、最大回撤 -22.2%（大盤 46.5%、-26.5%）。"
+MODEL_VERSION = "v4 季線＋斜率＋3 日確認＋急跌煞車"
+MODEL_NOTE = ("水位由加權指數決定：季線上 100%、季線下 50%、季線下且下彎 30%，連續 3 天收在季線另一側才切換；"
+              "另加急跌煞車：收盤離 20 日高點跌 10% 以上，水位上限 30%，收盤站回月線才解除。"
+              "開發期（2015/6–2024/12，1.5 倍加權報酬指數、扣現股成本）年化 15.7%、最大回撤 -23.4%（大盤 13.8%、-28.6%）。"
               "下方盤勢解讀的訊號不影響水位。")
 TIERS = [0, 30, 50, 70, 100]
 # 總分門檻：分數 >= 門檻 → 對應水位（由高到低）
@@ -335,6 +334,18 @@ def scenarios_v3(f, R, fwd_base):
     slope = "下彎" if rr.slope < -0.5 else "上彎" if rr.slope > 0.5 else "走平"
     left = max(N_CONFIRM - int(rr.streak), 1)
     out = []
+    if rr.brake:
+        ev = R["brake"] == False  # noqa: E712
+        ev = ev & R["brake"].shift(1, fill_value=False)
+        tgt = RULE["above"] if not rr.state else (RULE["below_down"] if slope == "下彎" else RULE["below"])
+        out.append({"key": "S", "name": "煞車解除", "tone": "bull", "cond": f"收盤站回月線（約 {fnum(lv20)}）",
+                    "meaning": "急跌暫告一段落", "action": f"水位回到 {tgt}%", "stats": event_stats(ev, fwd_base)})
+    elif rr.dd20 > -BRAKE_DROP:
+        hi20 = float(c.iloc[-19:].max())
+        ev = R["brake"] & ~R["brake"].shift(1, fill_value=False)
+        out.append({"key": "S", "name": "急跌煞車", "tone": "bear",
+                    "cond": f"收盤跌到 {fnum(hi20 * (1 - BRAKE_DROP))} 以下（近 20 日最高收盤 {fnum(hi20)} 的 -{int(BRAKE_DROP * 100)}%）",
+                    "meaning": "季線來不及反應的急跌", "action": f"水位上限降到 {BRAKE_CAP}%", "stats": event_stats(ev, fwd_base)})
     if not rr.state:
         prog = f"目前已連續 {int(rr.streak)} 天收在季線下，再 {left} 天就成立" if rr.below else "目前收在季線上"
         tgt = RULE["below_down"] if slope == "下彎" else RULE["below"]
@@ -372,7 +383,7 @@ def scenarios_v3(f, R, fwd_base):
         if slope != "下彎":
             ev = state & down & ~down.shift(1, fill_value=False)
             out.append({"key": "B", "name": "續弱", "tone": "bear", "cond": "仍在季線下，且季線由走平轉為下彎",
-                        "meaning": "由回檔轉為趨勢性下跌", "action": f"水位降到 {RULE['below_down']}%", "stats": event_stats(ev, fwd_base)})
+                        "meaning": "由回檔轉為趨勢性下跌", "action": f"煞車解除後水位只回到 {RULE['below_down']}%" if rr.brake else f"水位降到 {RULE['below_down']}%", "stats": event_stats(ev, fwd_base)})
         else:
             ev = state & ~down & down.shift(1, fill_value=False)
             out.append({"key": "B", "name": "趨緩", "tone": "bull", "cond": "季線由下彎轉為走平",
@@ -561,8 +572,9 @@ def main():
         "close": float(f["close"].iloc[-1]),
         "change_pct": float(f["close"].pct_change().iloc[-1] * 100),
         "exposure": tier, "prev_exposure": prev,
-        "regime": {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}[tier], "score": round(sc, 3),
+        "regime": "急跌煞車" if bool(R["brake"].iloc[-1]) else {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}[tier], "score": round(sc, 3),
         "rule": {"ma60": round(float(R["ma"].iloc[-1]), 0), "slope": slope_lab, "streak": int(R["streak"].iloc[-1]),
+                 "brake": bool(R["brake"].iloc[-1]), "dd20": round(float(R["dd20"].iloc[-1]) * 100, 1),
                  "side": "下" if bool(R["below"].iloc[-1]) else "上"},
         "context_date": None if market_date else ctx_date, "chip_date": chip_date, "market_date": market_date,
         "state": {"name": cur_state, "days": since, "ladder": ladder},
