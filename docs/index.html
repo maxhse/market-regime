@@ -67,6 +67,14 @@ h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:500;letter-spac
 .st .sd{color:var(--muted);font-size:13px}
 .st .ss{display:flex;gap:14px;font-size:11px;color:var(--muted);text-align:center}.st .ss b{display:block;font-size:14px;color:var(--ink)}
 @media (max-width:620px){.st{grid-template-columns:1fr}.st .ss{justify-content:flex-start}}
+.mks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mk{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.mk.low{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.mk .mh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.mk .big2{font-size:24px;font-weight:700}
+.mk .mr{font-size:13px;color:var(--muted)}
+.mk .mr b{color:var(--ink);font-weight:500}
+@media (max-width:620px){.mks{grid-template-columns:1fr}}
 .pc{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:12px 0;border-top:1px solid var(--line);font-size:14px}
 .pc:first-of-type{border-top:0}
 .pc .pl{font-weight:700;font-size:16px}.pc .pl span{display:block;font-size:12px;font-weight:400;color:var(--muted)}
@@ -119,7 +127,7 @@ function render(j){
     app.innerHTML = `<div class="card empty"><div class="big">等待資料</div>${esc(j.message)}</div>` + dataTable(j.data_status);
     return;
   }
-  app.innerHTML = hero(j) + stateCard(j) + pace(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
+  app.innerHTML = hero(j) + mkts(j) + stateCard(j) + pace(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
 }
 
 function hero(j){
@@ -137,6 +145,17 @@ function hero(j){
         <span>加權收盤 <b class="mono">${fmt(j.close)}</b> <span class="mono" style="color:${C(j.change_pct)}">${j.change_pct>0?'+':''}${fmt(j.change_pct,2)}%</span></span>
         ${j.rule&&j.rule.brake?`<span style="color:var(--bear)"><b>急跌煞車中</b>（離 20 日高點 ${fmt(j.rule.dd20,1)}%）</span>`:''}${j.rule?`<span>季線 <b class="mono">${fmt(j.rule.ma60)}</b>（${j.rule.slope}）</span><span>已連續 <b class="mono">${j.rule.streak}</b> 天收在季線${j.rule.side}</span>`:''}</div>
     </div></div>`;
+}
+
+function mkts(j){
+  if (!j.markets) return '';
+  const lo = Math.min(...j.markets.map(m=>m.expo));
+  const cols = j.markets.map(m => `<div class="mk ${m.expo===lo&&j.markets[0].expo!==j.markets[1].expo?'low':''}">
+      <div class="mh"><b>${m.name}</b><span class="mono big2">${m.expo}%</span></div>
+      <div class="mr">收盤 <b class="mono">${fmt(m.close, m.close<1000?2:0)}</b>・季線 <b class="mono">${fmt(m.ma60, m.ma60<1000?1:0)}</b>（${m.slope}）・連 ${m.streak} 天在季線${m.side}</div>
+      <div class="mr">${m.brake?`<span style="color:var(--bear)">急跌煞車中</span>（離 20 日高點 ${fmt(m.dd20,1)}%，站回月線 <span class="mono">${fmt(m.ma20, m.ma20<1000?1:0)}</span> 解除）`:`月線 <span class="mono">${fmt(m.ma20, m.ma20<1000?1:0)}</span>`}</div>
+      ${m.last_turn?`<div class="mr">最近一次${m.last_turn.to}：<span class="mono">${m.last_turn.date}</span></div>`:''}</div>`).join('');
+  return `<div class="card"><h2>加權與櫃買（整體水位取兩者較低）</h2><div class="mks">${cols}</div><p style="margin:12px 0 0;font-size:14px">${esc(j.combo_note)}</p></div>`;
 }
 
 function stateCard(j){

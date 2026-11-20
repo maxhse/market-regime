@@ -24,10 +24,11 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "raw"
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "docs" / "latest.json"
 
-MODEL_VERSION = "v4 季線＋斜率＋3 日確認＋急跌煞車"
-MODEL_NOTE = ("水位由加權指數決定：季線上 100%、季線下 50%、季線下且下彎 30%，連續 3 天收在季線另一側才切換；"
+MODEL_VERSION = "v5 加權＋櫃買（各自季線＋斜率＋3 日確認＋急跌煞車，取較低）"
+MODEL_NOTE = ("加權、櫃買各自套用同一規則，整體水位取兩者較低（兩邊都確認轉強才給高水位）。各自的規則：季線上 100%、季線下 50%、季線下且下彎 30%，連續 3 天收在季線另一側才切換；"
               "另加急跌煞車：收盤離 20 日高點跌 10% 以上，水位上限 30%，收盤站回月線才解除。"
-              "開發期（2015/6–2024/12，1.5 倍加權報酬指數、扣現股成本）年化 15.7%、最大回撤 -23.4%（大盤 13.8%、-28.6%）。"
+              "樣本外 2022/1–2026/11（扣現股成本）：用在加權報酬指數上年化 19.9%、最大回撤 -20.6%（指數 18.9%、-28.5%）；"
+              "用在櫃買指數上 8.6%、-26.4%（指數 2.2%、-41.9%）。"
               "下方盤勢解讀的訊號不影響水位。")
 TIERS = [0, 30, 50, 70, 100]
 # 總分門檻：分數 >= 門檻 → 對應水位（由高到低）
@@ -300,6 +301,37 @@ def describe_today(f, S):
     if "E2" in t:
         out.append(sig("外部", "E2", "台幣 20 日", t["E2"], f"USD/TWD 20 日 {fnum(r.fx_chg20 * 100, 1)}%（{'升值' if r.fx_chg20 < 0 else '貶值'}）"))
     return out
+
+
+# ---------- 加權＋櫃買 ----------
+def _side(name, close, R):
+    sl = R["slope"].iloc[-1]
+    strong = (R["expo"] == 100)
+    chg = strong.astype(int).diff().fillna(0) != 0
+    last = chg[chg].index[-1] if chg.any() else None
+    return {"name": name, "expo": int(R["expo"].iloc[-1]), "close": round(float(close.iloc[-1]), 2),
+            "ma60": round(float(R["ma"].iloc[-1]), 2), "ma20": round(float(R["ma20"].iloc[-1]), 2),
+            "slope": "上彎" if sl > 0.5 else "下彎" if sl < -0.5 else "走平",
+            "side": "下" if bool(R["below"].iloc[-1]) else "上", "streak": int(R["streak"].iloc[-1]),
+            "brake": bool(R["brake"].iloc[-1]), "dd20": round(float(R["dd20"].iloc[-1]) * 100, 1),
+            "last_turn": {"date": str(last.date()), "to": "轉強" if strong.loc[last] else "轉弱"} if last is not None else None}
+
+
+def two_markets(tc, Rt, oc, Ro):
+    t, o = _side("加權", tc, Rt), _side("櫃買", oc, Ro)
+    if t["expo"] == o["expo"]:
+        if t["expo"] == 100:
+            note = "加權、櫃買都在多頭，兩邊一致。"
+        else:
+            note = (f"加權、櫃買都偏弱（都是 {t['expo']}%）。歷史上回升時加權常比櫃買先轉強（轉強時加權先 18 次、櫃買先 8 次，約早 4–5 天）："
+                    "加權先站回時可先在權值、主流股小量布局，整體水位等櫃買也確認再提高。")
+    elif o["expo"] < t["expo"]:
+        note = (f"櫃買較弱（櫃買 {o['expo']}%、加權 {t['expo']}%）：權值撐盤、中小型股已轉弱。整體水位以櫃買為準；"
+                "減碼先從中小型、櫃買股開始。歷史上下跌時櫃買常比加權先轉弱（轉弱時櫃買先 15 次、加權先 11 次）。")
+    else:
+        note = (f"加權較弱（加權 {t['expo']}%、櫃買 {o['expo']}%）：權值股先轉弱。整體水位以加權為準；"
+                "中小型股之後常會補跌，不要因為櫃買仍強就加碼中小型股。")
+    return [t, o], note
 
 
 # ---------- 盤勢節奏（參考，不影響水位） ----------
@@ -610,7 +642,14 @@ def main():
     score, cats = total_score(S)
     tx_ = data["taiex"]
     R = apply_rule(tx_["close"], tx_["high"], tx_["low"]).reindex(f.index)
-    tiers = R["expo"]
+    markets, combo_note = None, None
+    tpc_ = data["tpex"]["close"].reindex(f.index).ffill(limit=3) if "tpex" in data else None
+    if tpc_ is not None and tpc_.notna().sum() > 120:
+        Ro = apply_rule(tpc_, tpc_, tpc_)          # 公開資料只有櫃買收盤 → 高低點用收盤代替（回測：與用高低點 95% 天數相同）
+        tiers = pd.concat([R["expo"], Ro["expo"]], axis=1).min(axis=1, skipna=False).fillna(R["expo"])
+        markets, combo_note = two_markets(f["close"], R, tpc_, Ro)
+    else:
+        tiers = R["expo"]
     if "breadth" in data:
         f["above_ma60"] = data["breadth"]["above_ma60"].reindex(f.index)
     fwd_base = data["taiex_tr"]["close"].reindex(f.index).ffill() if "taiex_tr" in data else f["close"]
@@ -661,7 +700,8 @@ def main():
         "close": float(f["close"].iloc[-1]),
         "change_pct": float(f["close"].pct_change().iloc[-1] * 100),
         "exposure": tier, "prev_exposure": prev,
-        "regime": "急跌煞車" if bool(R["brake"].iloc[-1]) else {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}[tier], "score": round(sc, 3),
+        "markets": markets, "combo_note": combo_note,
+        "regime": "急跌煞車" if (markets and any(m["brake"] for m in markets)) or bool(R["brake"].iloc[-1]) else {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}[tier], "score": round(sc, 3),
         "rule": {"ma60": round(float(R["ma"].iloc[-1]), 0), "slope": slope_lab, "streak": int(R["streak"].iloc[-1]),
                  "brake": bool(R["brake"].iloc[-1]), "dd20": round(float(R["dd20"].iloc[-1]) * 100, 1),
                  "side": "下" if bool(R["below"].iloc[-1]) else "上"},
