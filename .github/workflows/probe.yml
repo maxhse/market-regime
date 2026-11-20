@@ -1,12 +1,19 @@
 name: probe
 on: workflow_dispatch
+permissions:
+  contents: write
 jobs:
-  probe:
+  tx:
     runs-on: ubuntu-latest
+    concurrency: backfill-tx
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -q requests
+      - run: python engine/tx_hist.py 2010-01
       - run: |
-          for d in "2026/11/02 2026/11/19" "2023/11/01 2023/11/10" "2020/03/02 2020/03/10" "2017/05/15 2017/05/25" "2015/01/05 2015/01/10" "2010/01/04 2010/01/10"; do
-            set -- $d; echo "== $1 ~ $2"
-            curl -s -m 60 -X POST https://www.taifex.com.tw/cht/3/futDataDown -d "down_type=1&commodity_id=TX&queryStartDate=$1&queryEndDate=$2" | iconv -f big5 -t utf-8 -c | head -8
-            sleep 3
-          done
+          git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
+          git add data/market/tx_raw.csv
+          git commit -m "台指期日線歷史" || exit 0
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done
