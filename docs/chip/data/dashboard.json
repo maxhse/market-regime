@@ -1,5 +1,5 @@
 {
- "built_at": "2026-11-20T15:16:01+08:00",
+ "built_at": "2026-11-20T15:31:30+08:00",
  "rankings": {
   "1": {
    "complete": true,
@@ -3223,10 +3223,6 @@
   ],
   "twse_dealer": [
    {
-    "d": "2026-10-21",
-    "v": -13571703867.0
-   },
-   {
     "d": "2026-10-22",
     "v": -27377364607.0
    },
@@ -3301,13 +3297,13 @@
    {
     "d": "2026-11-19",
     "v": -23303184938.0
+   },
+   {
+    "d": "2026-11-20",
+    "v": -34083765608.0
    }
   ],
   "twse_foreign": [
-   {
-    "d": "2026-10-21",
-    "v": 2238909816.0
-   },
    {
     "d": "2026-10-22",
     "v": -81582101452.0
@@ -3383,6 +3379,10 @@
    {
     "d": "2026-11-19",
     "v": -24312208731.0
+   },
+   {
+    "d": "2026-11-20",
+    "v": -9413073072.0
    }
   ],
   "twse_margin": [
@@ -3469,10 +3469,6 @@
   ],
   "twse_trust": [
    {
-    "d": "2026-10-21",
-    "v": 12798537238.0
-   },
-   {
     "d": "2026-10-22",
     "v": 9492200518.0
    },
@@ -3547,6 +3543,10 @@
    {
     "d": "2026-11-19",
     "v": 4389988208.0
+   },
+   {
+    "d": "2026-11-20",
+    "v": -8749306916.0
    }
   ],
   "tx_foreign_oi": [
@@ -3633,48 +3633,48 @@
   ]
  },
  "status": {
-  "_checked_at": "2026-11-20T15:16:00+08:00",
+  "_checked_at": "2026-11-20T15:31:28+08:00",
   "stock_flows": {
    "data_date": "2026-11-19",
    "error": null,
    "label": "個股買賣超排行",
    "ok": true,
-   "updated_at": "2026-11-20T15:16:00+08:00"
+   "updated_at": "2026-11-20T15:31:28+08:00"
   },
   "taifex_tx": {
    "data_date": "2026-11-20",
    "error": null,
    "label": "台指期外資未平倉",
    "ok": true,
-   "updated_at": "2026-11-20T15:15:44+08:00"
+   "updated_at": "2026-11-20T15:30:57+08:00"
   },
   "tpex_insti": {
    "data_date": "2026-11-20",
    "error": null,
    "label": "櫃買三大法人",
    "ok": true,
-   "updated_at": "2026-11-20T15:15:35+08:00"
+   "updated_at": "2026-11-20T15:30:53+08:00"
   },
   "tpex_margin": {
    "data_date": "2026-11-19",
    "error": null,
    "label": "上櫃融資餘額",
    "ok": true,
-   "updated_at": "2026-11-20T15:15:41+08:00"
+   "updated_at": "2026-11-20T15:30:56+08:00"
   },
   "twse_insti": {
-   "data_date": "2026-11-19",
+   "data_date": "2026-11-20",
    "error": null,
    "label": "證交所三大法人",
    "ok": true,
-   "updated_at": "2026-11-20T15:15:35+08:00"
+   "updated_at": "2026-11-20T15:30:48+08:00"
   },
   "twse_margin": {
    "data_date": "2026-11-19",
    "error": null,
    "label": "上市融資餘額",
    "ok": true,
-   "updated_at": "2026-11-20T15:15:36+08:00"
+   "updated_at": "2026-11-20T15:30:53+08:00"
   }
  },
  "summary": {
@@ -3683,16 +3683,16 @@
    "tpex_foreign": "2026-11-20",
    "tpex_margin": "2026-11-19",
    "tpex_trust": "2026-11-20",
-   "twse_dealer": "2026-11-19",
-   "twse_foreign": "2026-11-19",
+   "twse_dealer": "2026-11-20",
+   "twse_foreign": "2026-11-20",
    "twse_margin": "2026-11-19",
-   "twse_trust": "2026-11-19",
+   "twse_trust": "2026-11-20",
    "tx_foreign_oi": "2026-11-20"
   },
   "tpex_margin_change": -9809949000.0,
-  "twse_foreign": -24312208731.0,
+  "twse_foreign": -9413073072.0,
   "twse_margin_change": -23658240000.0,
-  "twse_trust": 4389988208.0,
+  "twse_trust": -8749306916.0,
   "tx_foreign_oi": -97863.0,
   "tx_foreign_oi_change": 1356.0
  },
@@ -3705,11 +3705,11 @@
    "tp_m": null,
    "tp_mc": null,
    "tp_t": 354274901,
-   "tw_d": null,
-   "tw_f": null,
+   "tw_d": -34083765608,
+   "tw_f": -9413073072,
    "tw_m": null,
    "tw_mc": null,
-   "tw_t": null
+   "tw_t": -8749306916
   },
   {
    "d": "2026-11-19",
@@ -3983,45 +3983,45 @@
    "tpex_foreign": 7723009617.0,
    "tpex_margin": -9809949000.0,
    "tpex_trust": 354274901.0,
-   "twse_foreign": -24312208731.0,
+   "twse_foreign": -9413073072.0,
    "twse_margin": -23658240000.0,
-   "twse_trust": 4389988208.0,
+   "twse_trust": -8749306916.0,
    "tx_foreign_oi": 1356.0
   },
   "10": {
    "tpex_foreign": 18751662528.0,
    "tpex_margin": -36624403000.0,
    "tpex_trust": -6473912898.0,
-   "twse_foreign": -397134306524.0,
+   "twse_foreign": -315359130337.0,
    "twse_margin": -92040709000.0,
-   "twse_trust": 137465460412.0,
+   "twse_trust": 102024944766.0,
    "tx_foreign_oi": 2067.0
   },
   "20": {
    "tpex_foreign": 5314753978.0,
    "tpex_margin": -67595330000.0,
    "tpex_trust": 1464680047.0,
-   "twse_foreign": -1083030259318.0,
+   "twse_foreign": -1094682242206.0,
    "twse_margin": -153731781000.0,
-   "twse_trust": 330472355507.0,
+   "twse_trust": 308924511353.0,
    "tx_foreign_oi": -11791.0
   },
   "3": {
    "tpex_foreign": 10266972575.0,
    "tpex_margin": -20320150000.0,
    "tpex_trust": -5361776438.0,
-   "twse_foreign": -138969522117.0,
+   "twse_foreign": -110288957752.0,
    "twse_margin": -40129663000.0,
-   "twse_trust": 17180849948.0,
+   "twse_trust": 12252265381.0,
    "tx_foreign_oi": 33.0
   },
   "5": {
    "tpex_foreign": 18081958213.0,
    "tpex_margin": -22663839000.0,
    "tpex_trust": -9832419009.0,
-   "twse_foreign": -180322048229.0,
+   "twse_foreign": -218571807352.0,
    "twse_margin": -49106299000.0,
-   "twse_trust": 8418316813.0,
+   "twse_trust": -9870159504.0,
    "tx_foreign_oi": 3007.0
   }
  }
