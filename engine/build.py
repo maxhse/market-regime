@@ -478,7 +478,16 @@ def main():
         for p_ in sorted(daily_dir.glob("*.json")):
             r_ = json.loads(p_.read_text(encoding="utf-8"))
             rows.append({"date": p_.stem, "twse_margin": (r_.get("twse_margin") or {}).get("balance"),
-                         "oi": (r_.get("taifex_tx") or {}).get("net_oi_lots")})
+                         "oi": (r_.get("taifex_tx") or {}).get("net_oi_lots"),
+                         "foreign": (r_.get("twse_insti") or {}).get("foreign"), "trust": (r_.get("twse_insti") or {}).get("trust")})
+        hist = ROOT / "data" / "market" / "chip_hist.csv"   # 2014 年起的籌碼歷史（engine/chip_hist.py）
+        if hist.exists():
+            h_ = pd.read_csv(hist, na_values=["NA"])
+            have_ = {r_["date"] for r_ in rows}
+            for r_ in h_.to_dict("records"):
+                if r_["date"] not in have_:
+                    rows.append({"date": r_["date"], "twse_margin": r_["twse_margin"], "oi": r_["tx_foreign_oi"],
+                                 "foreign": r_["twse_foreign"], "trust": r_["twse_trust"]})
         if rows:
             cd = pd.DataFrame(rows).assign(date=lambda x: pd.to_datetime(x["date"])).set_index("date").sort_index()
             data["margin"] = pd.DataFrame({"twse_margin": cd["twse_margin"] / 1e8}).dropna()

@@ -5,7 +5,7 @@ name: backfill
 on:
   workflow_dispatch:
   push:
-    paths: ["engine/market.py", ".github/workflows/backfill.yml"]
+    paths: ["engine/market.py", "engine/chip_hist.py", ".github/workflows/backfill.yml"]
   schedule:
     - cron: "20 */6 * * *"
 permissions:
@@ -34,5 +34,18 @@ jobs:
               for t in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && break; sleep 20; done
             fi
             if grep -q "尚缺 0 天" /tmp/bf.log || grep -q "疑似被封鎖" /tmp/bf.log; then break; fi
+          done
+          exit 0
+      - name: 籌碼歷史回補（每 40 分鐘提交一次）
+        run: |
+          pip install --quiet requests certifi
+          for i in 1 2 3 4 5 6 7; do
+            python engine/chip_hist.py 40 | tee /tmp/ch.log
+            git add data/market/chip_hist.csv
+            if ! git diff --cached --quiet; then
+              git commit -q -m "回補籌碼歷史 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+              for t in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && break; sleep 20; done
+            fi
+            if grep -q "尚缺 0 天" /tmp/ch.log; then break; fi
           done
           exit 0
