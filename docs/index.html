@@ -67,6 +67,11 @@ h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:500;letter-spac
 .st .sd{color:var(--muted);font-size:13px}
 .st .ss{display:flex;gap:14px;font-size:11px;color:var(--muted);text-align:center}.st .ss b{display:block;font-size:14px;color:var(--ink)}
 @media (max-width:620px){.st{grid-template-columns:1fr}.st .ss{justify-content:flex-start}}
+.pc{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:12px 0;border-top:1px solid var(--line);font-size:14px}
+.pc:first-of-type{border-top:0}
+.pc .pl{font-weight:700;font-size:16px}.pc .pl span{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.pc .pm{color:var(--muted);font-size:13px;margin-top:2px}
+@media (max-width:620px){.pc{grid-template-columns:1fr;gap:4px}}
 .trig{display:inline-block;background:var(--accent);color:var(--card);font-size:12px;padding:1px 8px;border-radius:999px;margin:4px 0 0}
 .note{font-size:12px;color:var(--muted);margin-top:10px}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -114,7 +119,7 @@ function render(j){
     app.innerHTML = `<div class="card empty"><div class="big">等待資料</div>${esc(j.message)}</div>` + dataTable(j.data_status);
     return;
   }
-  app.innerHTML = hero(j) + stateCard(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
+  app.innerHTML = hero(j) + stateCard(j) + pace(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
 }
 
 function hero(j){
@@ -142,6 +147,20 @@ function stateCard(j){
     <div class="ss mono"><span><b>${s.drop8 ?? '—'}%</b>再跌 8% 機率</span><span><b>${s.up20 ?? '—'}%</b>20 日上漲</span><span><b>${s.share}%</b>歷史占比</span></div></div>`; }).join('');
   return `<div class="card"><h2>盤勢狀態（統計為 2014 年起該狀態之後 20 日的實際走勢）</h2>${rows}
     <div class="note">狀態用來說明現在的盤勢與下一步的升降級條件；水位仍由季線規則決定。</div></div>`;
+}
+
+function pace(j){
+  if (!j.pace || !j.pace.length) return '';
+  const rows = j.pace.map(p => { const st = p.stats || {};
+    const stats = st.n ? `<div class="stats ${st.reliable?'':'weak'}" style="max-width:420px">
+        <span><b class="mono">${st.n}</b>歷史次數${st.reliable?'':'（少）'}</span>
+        <span><b class="mono">${st.up5}%</b>5日上漲</span>
+        <span><b class="mono">${st.up20}%</b>20日上漲</span>
+        <span><b class="mono">${st.avg20>0?'+':''}${st.avg20}%</b>20日平均</span></div>` : '';
+    return `<div class="pc"><div class="pl" style="color:${tone[p.tone]}">${esc(p.label)}<span>${esc(p.name)}</span></div>
+      <div>${esc(p.detail)}<div class="pm">${esc(p.meaning)}</div>${stats}</div></div>`; }).join('');
+  return `<div class="card"><h2>盤勢節奏（參考，不影響水位）</h2>${rows}
+    <div class="note">歷史次數為 2014 年起出現同樣情況的次數（5 日內重複只算一次），之後走勢以加權報酬指數計。融資歷史仍在回補中，次數會逐步增加。</div></div>`;
 }
 
 function cats(j){

@@ -302,6 +302,94 @@ def describe_today(f, S):
     return out
 
 
+# ---------- 盤勢節奏（參考，不影響水位） ----------
+PACE_TXT = {
+    "急跌": ("bear", "5 日跌 5% 以上，或 10 天內從 20 日高點跌 8% 以上。急跌常伴隨斷頭與恐慌，跌勢快但也常出現技術反彈；水位由急跌煞車處理。"),
+    "緩跌": ("bear", "從 20 日高點慢慢下跌 3% 以上、沒有急殺。緩跌代表賣壓持續、沒有恐慌宣洩，較不容易出現急跌後的報復性反彈。"),
+    "盤整": ("neutral", "20 日內的高低點離現在都不到 3%，方向不明。"),
+    "緩漲": ("bull", "從 20 日低點慢慢上漲 3% 以上。緩漲通常是較健康的上漲。"),
+    "急漲": ("bull", "5 日漲 5% 以上，或 10 天內從 20 日低點漲 8% 以上。急漲在空頭中常是跌深反彈，在多頭中可能是噴出，需搭配季線判斷。"),
+}
+
+
+def _days_since(s, fn):
+    return s.rolling(20).apply(lambda a: len(a) - 1 - (a.argmax() if fn == "max" else a.argmin()), raw=True)
+
+
+def pace_context(f, fwd_base, margin=None):
+    c = f["close"]
+    hi, lo = c.rolling(20).max(), c.rolling(20).min()
+    dhi, dlo = _days_since(c, "max"), _days_since(c, "min")
+    drop, rise, r5 = c / hi - 1, c / lo - 1, c.pct_change(5)
+    lab = pd.Series(np.select(
+        [(r5 <= -0.05) | ((drop <= -0.08) & (dhi <= 10) & (dhi >= dlo)),
+         (r5 >= 0.05) | ((rise >= 0.08) & (dlo <= 10) & (dlo >= dhi)),
+         (dhi > dlo) & (drop <= -0.03), (dlo > dhi) & (rise >= 0.03)],
+        ["急跌", "急漲", "緩跌", "緩漲"], "盤整"), index=c.index).where(hi.notna())
+    out, t = [], c.index[-1]
+    L = lab.iloc[-1]
+    tone, txt = PACE_TXT[L]
+    if L in ("急跌", "緩跌"):
+        det = f"近 20 日最高收盤 {fnum(hi.iloc[-1])}（{int(dhi.iloc[-1])} 天前）至今 {fnum(drop.iloc[-1] * 100, 1)}%，平均每天 {fnum(drop.iloc[-1] * 100 / max(dhi.iloc[-1], 1), 2)}%；5 日 {fnum(r5.iloc[-1] * 100, 1)}%"
+    elif L in ("急漲", "緩漲"):
+        det = f"近 20 日最低收盤 {fnum(lo.iloc[-1])}（{int(dlo.iloc[-1])} 天前）至今 +{fnum(rise.iloc[-1] * 100, 1)}%，平均每天 +{fnum(rise.iloc[-1] * 100 / max(dlo.iloc[-1], 1), 2)}%；5 日 {fnum(r5.iloc[-1] * 100, 1)}%"
+    else:
+        det = f"離 20 日高點 {fnum(drop.iloc[-1] * 100, 1)}%、離 20 日低點 +{fnum(rise.iloc[-1] * 100, 1)}%；5 日 {fnum(r5.iloc[-1] * 100, 1)}%"
+    out.append({"name": "漲跌速度", "label": L, "tone": tone, "detail": det, "meaning": txt,
+                "stats": event_stats(lab == L, fwd_base)})
+
+    # 成交量：今日成交金額 ÷ 前 20 日平均
+    v = f["turnover"]
+    if v.notna().sum() > 60 and pd.notna(v.iloc[-1]):
+        vr = v / v.shift(1).rolling(20).mean()
+        vlab = pd.Series(np.select([vr >= 1.5, vr >= 1.15, vr <= 0.6, vr <= 0.85], ["爆量", "量增", "窒息量", "量縮"], "量平"), index=c.index).where(vr.notna())
+        d1 = np.sign(c.pct_change())
+        dlab = pd.Series(np.where(d1 > 0, "價漲", "價跌"), index=c.index)
+        combo = dlab + vlab
+        x = combo.iloc[-1]
+        vtone = {"價跌爆量": "neutral", "價跌量增": "bear", "價跌量縮": "neutral", "價跌窒息量": "bull", "價漲爆量": "neutral",
+                 "價漲量增": "bull", "價漲量縮": "neutral"}.get(x, "neutral")
+        vtxt = {"價跌爆量": "下跌爆量：恐慌或停損賣壓宣洩，若發生在跌深後常是短底的條件之一，但仍需價格止跌確認。",
+                "價跌量增": "下跌放量：賣壓積極，跌勢可能延續。",
+                "價跌量縮": "下跌量縮：賣壓減輕，但買盤也沒有進場。",
+                "價跌窒息量": "下跌但量極低：賣壓接近竭盡，常出現在跌勢末段的整理。",
+                "價漲爆量": "上漲爆量：可能是攻擊量，也可能是高檔換手；看隔日能否守住。",
+                "價漲量增": "上漲放量：買盤積極，反彈或上攻較有力道。",
+                "價漲量縮": "上漲量縮：追價意願不足，若在季線下多半只是弱勢反彈。",
+                "價漲窒息量": "上漲但量極低：反彈力道弱。"}.get(x, "成交量與 20 日均量相當。")
+        v5 = v.iloc[-5:].mean() / v.shift(5).rolling(20).mean().iloc[-1]
+        out.append({"name": "成交量", "label": x, "tone": vtone,
+                    "detail": f"今日成交 {fnum(v.iloc[-1])} 億，為前 20 日均量 {fnum(vr.iloc[-1], 2)} 倍；近 5 日均量為之前 20 日的 {fnum(v5, 2)} 倍",
+                    "meaning": vtxt, "stats": event_stats(combo == x, fwd_base)})
+
+    # 融資增減 vs 指數漲跌（同一段走勢）
+    if margin is not None and margin.notna().sum() > 60:
+        m = margin.reindex(c.index).ffill(limit=2)
+        if pd.notna(m.iloc[-1]):
+            n = pd.Series(np.where(lab.isin(["急跌", "緩跌"]), dhi, np.where(lab.isin(["急漲", "緩漲"]), dlo, 10)), index=c.index).clip(lower=3).fillna(10).astype(int)
+            pos = np.arange(len(c))
+            st_ = np.maximum(pos - n.values, 0)
+            mchg = pd.Series(m.values / m.values[st_] - 1, index=c.index)
+            ichg = pd.Series(c.values / c.values[st_] - 1, index=c.index)
+            down = ichg < 0
+            mlab = pd.Series(np.select(
+                [down & (mchg <= ichg * 1.5), down & (mchg > ichg * 0.5), down,
+                 ~down & (mchg >= ichg * 1.5) & (mchg > 0.01), ~down & (mchg < 0), ~down],
+                ["融資清洗", "融資未退", "融資同步減", "融資追價", "籌碼沉澱", "融資同步增"], ""), index=c.index).where(m.notna())
+            y = mlab.iloc[-1]
+            mtone = {"融資清洗": "bull", "融資未退": "bear", "融資追價": "bear", "籌碼沉澱": "bull"}.get(y, "neutral")
+            mtxt = {"融資清洗": "這段下跌中融資減幅超過指數跌幅 1.5 倍：斷頭、停損賣壓較充分，籌碼相對乾淨。",
+                    "融資未退": "指數跌了，融資減幅卻不到指數跌幅的一半（或反而增加）：散戶還沒退場，上方套牢與斷頭風險仍在。",
+                    "融資同步減": "融資減幅和指數跌幅相當。",
+                    "融資追價": "這段上漲中融資增幅超過指數漲幅 1.5 倍：散戶追價，籌碼變亂。",
+                    "籌碼沉澱": "指數上漲但融資減少：上漲不是靠散戶槓桿，籌碼較穩。",
+                    "融資同步增": "融資增幅和指數漲幅相當。"}[y]
+            out.append({"name": "融資 vs 指數", "label": y, "tone": mtone,
+                        "detail": f"近 {int(n.iloc[-1])} 個交易日（{'這段下跌' if lab.iloc[-1] in ('急跌', '緩跌') else '這段上漲' if lab.iloc[-1] in ('急漲', '緩漲') else '近期'}）：上市融資 {fnum(mchg.iloc[-1] * 100, 1)}%、加權指數 {fnum(ichg.iloc[-1] * 100, 1)}%；融資餘額 {fnum(m.iloc[-1])} 億",
+                        "meaning": mtxt, "stats": event_stats((mlab == y) & m.notna(), fwd_base)})
+    return out
+
+
 # ---------- 劇本與歷史統計 ----------
 def event_stats(event, fwd_base):
     ev = event.fillna(False).astype(bool)
@@ -545,6 +633,7 @@ def main():
     cur_state = stt.iloc[-1]
     since = int((stt[::-1] == cur_state).cumprod().sum())
     scen, levels, slope_lab = scenarios_v3(f, R, fwd_base)
+    pace = pace_context(f, fwd_base, data["margin"]["twse_margin"] if "margin" in data else None)
     sigs, catd = describe_today(f, S), {k: round(float(v), 2) for k, v in cats.iloc[-1].dropna().items()}
     ctx_path = OUT.parent / "context.json"
     PRICE_CATS = ("趨勢", "外部")
@@ -581,6 +670,7 @@ def main():
         "categories": catd,
         "signals": sigs,
         "scenarios": scen,
+        "pace": pace,
         "levels": {k: round(v, 0) for k, v in levels.items()},
         "history": [{"d": str(d.date()), "c": round(float(row.close), 1), "t": int(row.tier), "s": round(float(row.score), 3)}
                     for d, row in hist.iterrows()],
