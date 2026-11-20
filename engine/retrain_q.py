@@ -70,18 +70,19 @@ TEST0 = "2022-01-01"
 res, curves, picklog = {}, {}, {}
 for obj, olab in (("cagr", "回撤不輸大盤下年化最高"), ("calmar", "Calmar 最高")):
     k0 = pick(slice(START, "2021-12-31"), obj)
-    oos = pd.Series(index=days, dtype=float); log = []
-    for q in pd.date_range(TEST0, days[-1], freq="QS"):
-        test = days[(days >= q) & (days < q + pd.DateOffset(months=3))]
-        if not len(test): continue
-        k = pick(slice(START, days[days < q][-21]), obj)
-        oos.loc[test] = EXPO[k].loc[test]; log.append((f"{q:%Y}Q{(q.month-1)//3+1}", tuple(GRID[k].values())))
-    picklog[olab] = log
-    o = oos.dropna()
-    res[f"每季重新訓練｜{olab}"] = o
-    res[f"2014–2021 訓練一次不再改｜{olab}"] = EXPO[k0].loc[o.index]
     print(f"[{olab}] 2014–2021 一次訓練選到：{GRID[k0]}")
-
+    for freq, flab in (("QS", "每季"), ("YS", "每年")):
+        for win, wlab in ((None, "累積視窗"), (5, "近 5 年")):
+            oos = pd.Series(index=days, dtype=float); log = []
+            for q in pd.date_range(TEST0, days[-1], freq=freq):
+                test = days[(days >= q) & (days < q + pd.DateOffset(months=3 if freq == "QS" else 12))]
+                if not len(test): continue
+                st = START if win is None else max(pd.Timestamp(START), q - pd.DateOffset(years=win))
+                k = pick(slice(st, days[days < q][-21]), obj)
+                oos.loc[test] = EXPO[k].loc[test]; log.append((f"{q:%Y}Q{(q.month-1)//3+1}", tuple(GRID[k].values())))
+            lab = f"{flab}重新優化｜{wlab}｜{olab}"
+            picklog[lab] = log; res[lab] = oos.dropna()
+    res[f"2014–2021 優化一次不再改｜{olab}"] = EXPO[k0].loc[res[lab].index]
 idx = res[next(iter(res))].index
 sl = slice(idx[0], idx[-1])
 one = pd.Series(1.0, index=idx)
@@ -100,6 +101,6 @@ print("\n逐年報酬%：\n", ((1 + yr).groupby(yr.index.year).prod() - 1).mul(1
 dd = {k: (equity(e, hb.loc[sl]).groupby(lambda d: d.year).apply(lambda s: (s / s.cummax() - 1).min()) * 100) for k, e in series.items()}
 dd["大盤"] = equity(one, tr.loc[sl], False).groupby(lambda d: d.year).apply(lambda s: (s / s.cummax() - 1).min()) * 100
 print("\n逐年最大回撤%：\n", pd.DataFrame(dd).T.round(1).to_string())
-for k, v in picklog.items():
+for k, v in [x for x in picklog.items() if "每年" in x[0]]:
     print(f"\n[{k}] 每季選到（季線長度, 確認天數, 季線下水位, 下彎水位, 煞車）：")
     for q, p in v: print("  ", q, p)
