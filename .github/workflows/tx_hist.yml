@@ -1,4 +1,4 @@
-name: probe
+name: tx_hist（台指期日線，手動執行）
 on: workflow_dispatch
 permissions:
   contents: write
