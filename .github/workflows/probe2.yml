@@ -5,12 +5,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sL -m 90 "https://cpx.cbc.gov.tw/API/DataAPI/Get?FileName=BP01D01" -o o.json
-          python3 - <<'PY'
-          import json
-          j=json.load(open("o.json",encoding="utf-8-sig"))
-          print(list(j.keys())); m=j["meta"]; print({k:(str(v)[:200]) for k,v in m.items()})
-          d=j.get("data") or j.get("Data")
-          print(type(d), (list(d.keys())[:10] if isinstance(d,dict) else len(d)))
-          s=json.dumps(d,ensure_ascii=False); print(s[:1500]); print("...", s[-800:])
-          PY
+          for u in "https://rate.bot.com.tw/xrt/flcsv/0/L6M/USD" "https://rate.bot.com.tw/xrt/flcsv/0/2026-10/USD" "https://rate.bot.com.tw/xrt/flcsv/0/day"; do
+            echo "== $u"; curl -sL -m 60 -A "Mozilla/5.0" "$u" -o o.bin -w "%{http_code} %{size_download} %{content_type}\n"; head -c 500 o.bin | iconv -f utf-8 -t utf-8 -c; echo; wc -l o.bin; tail -2 o.bin; done
