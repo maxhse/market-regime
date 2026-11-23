@@ -303,6 +303,34 @@ def describe_today(f, S):
     return out
 
 
+def public_status(data, ref):
+    """公開資料模式：列出網站實際使用的資料與更新日期。"""
+    def col(key, c=None):
+        d = data.get(key)
+        if d is None:
+            return None
+        s = (d[c] if c in d else None) if c else d.dropna(how="all")
+        return None if s is None else s.dropna()
+    items = [("加權指數日線", "Yahoo Finance ^TWII＋證交所 MI_5MINS_HIST", col("taiex", "close"), True),
+             ("加權報酬指數", "證交所 MI_INDEX", col("taiex_tr", "close"), True),
+             ("櫃買指數", "櫃買中心 indexInfo／highlight", col("tpex", "close"), True),
+             ("上市成交金額", "證交所 FMTQIK", col("taiex", "turnover"), True),
+             ("漲跌家數、漲跌停、廣度", "證交所 MI_INDEX＋櫃買中心 afterTrading", col("breadth", "above_ma60"), True),
+             ("上市融資餘額", "證交所 MI_MARGN", col("margin", "twse_margin"), True),
+             ("外資台指期淨未平倉", "期交所 futContractsDate（2023/12 起）", col("futures", "foreign_tx_net_oi"), True),
+             ("P/C ratio", "期交所 pcRatio", col("futures", "pc_ratio"), False),
+             ("台積電收盤價", "證交所 MI_INDEX", col("tsmc", "close") if "tsmc" in data and "close" in data["tsmc"] else col("tsmc"), False),
+             ("費城半導體指數", "Yahoo Finance ^SOX", col("external", "sox"), False)]
+    out = []
+    for label, src, s, req in items:
+        ok = s is not None and len(s) > 0
+        last = str(s.index[-1].date()) if ok else None
+        out.append({"file": label, "label": src, "required": req, "present": ok, "rows": int(len(s)) if ok else 0,
+                    "first": str(s.index[0].date()) if ok else None, "last": last,
+                    "stale": bool(ok and ref and last < ref), "missing_cols": []})
+    return out
+
+
 # ---------- 加權＋櫃買 ----------
 def _side(name, close, R):
     sl = R["slope"].iloc[-1]
@@ -628,6 +656,8 @@ def main():
         pc_ = pd.read_csv(ROOT / "data" / "public" / "market.csv", parse_dates=["date"]).set_index("date").get("pc_ratio")
         if pc_ is not None and pc_.notna().sum() > 60:
             data["futures"]["pc_ratio"] = pc_.reindex(data["futures"].index.union(pc_.index))
+    if public_mode:
+        base["data_status"] = public_status(data, market_date)
     if "taiex" not in data or len(data["taiex"]) < 80:
         base.update({"status": "no_data", "message": "尚未放入 taiex.csv（至少需要 80 個交易日）"})
         if OUT.exists() and '"status": "ok"' in OUT.read_text(encoding="utf-8"):

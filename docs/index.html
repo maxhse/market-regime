@@ -237,10 +237,10 @@ function chart(j){
 function dataTable(ds){
   const rows = ds.map(d => `<tr><td class="mono">${d.file}</td><td class="hide-s">${esc(d.label)}</td>
     <td>${d.required?'必備':'選用'}</td>
-    <td class="${d.present?'ok':(d.required?'miss':'')}">${d.present?'✓ '+d.rows+' 筆':'缺'}${d.missing_cols&&d.missing_cols.length?'<br><small>缺欄位：'+d.missing_cols.join(', ')+'</small>':''}</td>
+    <td class="${d.present&&!d.stale?'ok':(d.required?'miss':'')}">${d.present?(d.stale?'落後（最新 '+d.last+'）':'✓ '+d.rows+' 筆'):'缺'}${d.missing_cols&&d.missing_cols.length?'<br><small>缺欄位：'+d.missing_cols.join(', ')+'</small>':''}</td>
     <td class="mono hide-s">${d.first?d.first+' ~ '+d.last:'—'}</td></tr>`).join('');
-  return `<div class="card"><h2>資料完整度</h2><table><tr><th>檔案</th><th class="hide-s">內容</th><th>類型</th><th>狀態</th><th class="hide-s">期間</th></tr>${rows}</table>
-    <div class="note">欄位規格見 repo 的 data/README.md。</div></div>`;
+  return `<div class="card"><h2>資料完整度</h2><table><tr><th>資料</th><th class="hide-s">來源</th><th>類型</th><th>狀態</th><th class="hide-s">期間</th></tr>${rows}</table>
+    <div class="note">全部為公開資料，每個交易日收盤後自動更新。「落後」表示該項資料日期早於最新交易日。</div></div>`;
 }
 </script>
 </body>
