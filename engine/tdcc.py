@@ -33,8 +33,12 @@ TOP_N = 300
 def summarize(levels: dict[int, tuple[float, float, float]]) -> dict | None:
     """levels: 分級 → (人數, 股數, 比例%)。"""
     tot = levels.get(17)
-    if not tot or not tot[1]:
-        return None
+    if not tot or not tot[1]:   # 合計列沒讀到：用 1–16 級加總
+        if not all(k in levels for k in range(1, 16)):
+            return None
+        tot = tuple(sum(levels[k][i] for k in levels if 1 <= k <= 16) for i in range(3))
+        if not tot[1]:
+            return None
     sh = tot[1]
     pct = lambda ks: round(sum(levels.get(k, (0, 0, 0))[1] for k in ks) / sh * 100, 2)
     return {"holders": int(tot[0]), "shares": int(tot[1]), "p1000": pct([15]), "p400": pct([12, 13, 14, 15]),
@@ -123,6 +127,11 @@ def qry(s, tok, code, date):
     levels = {}
     for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S):
         td = re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)
+        txt = re.sub(r"<[^>]+>|\s|　", "", tr)
+        if "合計" in txt and len(td) >= 3:
+            nums = [_num(x) for x in td if _num(x) is not None]
+            if len(nums) >= 3:
+                levels[17] = tuple(nums[-3:]); continue
         if len(td) != 5:
             continue
         lab = re.sub(r"<[^>]+>|\s|　", "", td[0] + td[1])
@@ -169,16 +178,25 @@ def backfill(minutes=40.0):
     for d, c in todo:
         if time.time() - t0 > minutes * 60:
             break
-        try:
-            lv, tok = qry(s, tok, c, d)
-            sm = summarize(lv)
-            if sm:
-                buf.setdefault(d, {})[c] = sm
-            else:
-                fail += 1
-        except Exception as e:  # noqa: BLE001
-            fail += 1; print(d, c, str(e)[:60])
-            time.sleep(5); s, tok, _ = qry_session()
+        sm = None
+        for k in range(3):
+            try:
+                lv, tok = qry(s, tok, c, d)
+                sm = summarize(lv)
+                if sm:
+                    break
+            except Exception as e:  # noqa: BLE001
+                if k == 2: print(d, c, str(e)[:60])
+            time.sleep(3 * (k + 1))
+            try:
+                s, tok, _ = qry_session()
+            except Exception:  # noqa: BLE001
+                time.sleep(10)
+        if sm:
+            buf.setdefault(d, {})[c] = sm
+        else:
+            fail += 1
+            if fail <= 10: print("失敗", d, c)
         n += 1
         if n % 200 == 0:
             for dd, rr in buf.items(): save_week(dd, rr)
