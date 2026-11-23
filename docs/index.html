@@ -75,6 +75,16 @@ h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:500;letter-spac
 .mk .mr{font-size:13px;color:var(--muted)}
 .mk .mr b{color:var(--ink);font-weight:500}
 @media (max-width:620px){.mks{grid-template-columns:1fr}}
+.ovs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ov{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.ov.on{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.ov .oh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ov .chip{font-size:12px;padding:1px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.ov.on .chip{border-color:var(--accent);color:var(--accent)}
+.ov-v{font-size:14px;margin:6px 0 2px}
+.ov-r,.ov-d{font-size:13px;color:var(--muted)}
+.ov-t{margin-left:8px;font-size:12px}
+@media (max-width:620px){.ovs{grid-template-columns:1fr}}
 .pc{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:12px 0;border-top:1px solid var(--line);font-size:14px}
 .pc:first-of-type{border-top:0}
 .pc .pl{font-weight:700;font-size:16px}.pc .pl span{display:block;font-size:12px;font-weight:400;color:var(--muted)}
@@ -127,7 +137,7 @@ function render(j){
     app.innerHTML = `<div class="card empty"><div class="big">等待資料</div>${esc(j.message)}</div>` + dataTable(j.data_status);
     return;
   }
-  app.innerHTML = hero(j) + mkts(j) + stateCard(j) + pace(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
+  app.innerHTML = hero(j) + mkts(j) + ovl(j) + stateCard(j) + pace(j) + cats(j) + signals(j) + scen(j) + chart(j) + dataTable(j.data_status);
 }
 
 function hero(j){
@@ -156,6 +166,17 @@ function mkts(j){
       <div class="mr">${m.brake?`<span style="color:var(--bear)">急跌煞車中</span>（離 20 日高點 ${fmt(m.dd20,1)}%，站回月線 <span class="mono">${fmt(m.ma20, m.ma20<1000?1:0)}</span> 解除）`:`月線 <span class="mono">${fmt(m.ma20, m.ma20<1000?1:0)}</span>`}</div>
       ${m.last_turn?`<div class="mr">最近一次${m.last_turn.to}：<span class="mono">${m.last_turn.date}</span></div>`:''}</div>`).join('');
   return `<div class="card"><h2>加權與櫃買（整體水位取兩者較低）</h2><div class="mks">${cols}</div><p style="margin:12px 0 0;font-size:14px">${esc(j.combo_note)}</p></div>`;
+}
+
+function ovl(j){
+  if (!j.overlays || !j.overlays.length) return '';
+  const rows = j.overlays.map(o => `<div class="ov ${o.active?'on':''}">
+      <div class="oh"><b>${esc(o.name)}</b><span class="chip">${o.active?(o.binding?'觸發中・正在影響水位':'觸發中'):'未觸發'}</span></div>
+      <div class="mono ov-v">${esc(o.value)}</div>
+      <div class="ov-r">${esc(o.rule)}</div>
+      <div class="ov-d">${esc(o.detail)}<span class="ov-t">資料日 ${esc(o.date)}</span></div></div>`).join('');
+  return `<div class="card"><h2>水位調整條件</h2><div class="ovs">${rows}</div>
+    <div class="note">兩條都在加權、櫃買取較低之後才套用；歷史上不曾同時觸發。2014–2021 與 2022 年後、加權與櫃買四種情況回測都改善。</div></div>`;
 }
 
 function stateCard(j){

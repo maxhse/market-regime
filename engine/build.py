@@ -24,11 +24,14 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "raw"
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "docs" / "latest.json"
 
-MODEL_VERSION = "v5 加權＋櫃買（各自季線＋斜率＋3 日確認＋急跌煞車，取較低）"
+MODEL_VERSION = "v6 加權＋櫃買取較低，加台幣快速升值、外資重賣兩條調整"
 MODEL_NOTE = ("加權、櫃買各自套用同一規則，整體水位取兩者較低（兩邊都確認轉強才給高水位）。各自的規則：季線上 100%、季線下 50%、季線下且下彎 30%，連續 3 天收在季線另一側才切換；"
               "另加急跌煞車：收盤離 20 日高點跌 10% 以上，水位上限 30%，收盤站回月線才解除。"
               "樣本外 2022/1–2026/11（扣現股成本）：用在加權報酬指數上年化 19.9%、最大回撤 -20.6%（指數 18.9%、-28.5%）；"
               "用在櫃買指數上 8.6%、-26.4%（指數 2.2%、-41.9%）。"
+              "另有兩條調整：台幣 20 日升值 1.5% 以上（熱錢流入）→ 之後 10 個交易日水位至少 70%；"
+              "上市外資 20 日賣超達上市成交金額 5% 以上 → 水位上限 30%（兩者歷史上不曾同時出現）。"
+              "加上兩條後樣本外：加權 22.3%／-18.9%、櫃買 11.0%／-24.2%。"
               "下方盤勢解讀的訊號不影響水位。")
 TIERS = [0, 30, 50, 70, 100]
 # 總分門檻：分數 >= 門檻 → 對應水位（由高到低）
@@ -320,7 +323,9 @@ def public_status(data, ref):
              ("外資台指期淨未平倉", "期交所 futContractsDate（2023/12 起）", col("futures", "foreign_tx_net_oi"), True),
              ("P/C ratio", "期交所 pcRatio", col("futures", "pc_ratio"), False),
              ("台積電收盤價", "證交所 MI_INDEX", col("tsmc", "close") if "tsmc" in data and "close" in data["tsmc"] else col("tsmc"), False),
-             ("費城半導體指數", "Yahoo Finance ^SOX", col("external", "sox"), False)]
+             ("費城半導體指數", "Yahoo Finance ^SOX", col("external", "sox"), False),
+             ("美元兌台幣", "Yahoo Finance TWD=X", data["fx"].dropna() if data.get("fx") is not None else None, True),
+             ("上市外資買賣超", "證交所 BFI82U", data["foreign"].dropna() if data.get("foreign") is not None else None, True)]
     out = []
     for label, src, s, req in items:
         ok = s is not None and len(s) > 0
@@ -329,6 +334,50 @@ def public_status(data, ref):
                     "first": str(s.index[0].date()) if ok else None, "last": last,
                     "stale": bool(ok and ref and last < ref), "missing_cols": []})
     return out
+
+
+# ---------- 兩條調整：台幣快速升值、外資重賣 ----------
+FX_UP, FX_HOLD, FX_FLOOR = 0.015, 10, 70
+FS_SELL, FS_CAP = 0.05, 30
+
+
+def apply_overlays(tiers, data, f):
+    idx = tiers.index
+    out, t = [], tiers.copy()
+    fx = data.get("fx")
+    if fx is not None and fx.notna().sum() > 40:
+        fx_ = fx.reindex(idx.union(fx.index)).ffill().reindex(idx)
+        chg = fx_ / fx_.shift(20) - 1
+        hit = chg <= -FX_UP
+        act = hit.rolling(FX_HOLD, min_periods=1).max().astype(bool)
+        base = t.copy()
+        t = t.where(~act, np.maximum(t, FX_FLOOR))
+        last_hit = hit[hit].index[-1] if hit.any() else None
+        c, a = float(chg.iloc[-1]), bool(act.iloc[-1])
+        out.append({"key": "fx", "name": "台幣快速升值", "active": a, "binding": a and float(base.iloc[-1]) < FX_FLOOR,
+                    "regime": "台幣快速升值（熱錢流入）",
+                    "value": f"美元兌台幣 {fx_.iloc[-1]:.3f}，20 日{'升值' if c < 0 else '貶值'} {abs(c) * 100:.2f}%",
+                    "rule": f"台幣 20 日升值 {FX_UP * 100:.1f}% 以上 → 之後 {FX_HOLD} 個交易日水位至少 {FX_FLOOR}%",
+                    "detail": (f"觸發中（最近一次 {last_hit.date()}），水位至少 {FX_FLOOR}%" if a else
+                               f"未觸發：再升值 {max(0.0, (c + FX_UP)) * 100:.2f}% 才會觸發（約 {fx_.shift(20).iloc[-1] * (1 - FX_UP):.3f} 以下）"),
+                    "date": str(fx.dropna().index[-1].date())})
+    fs, to = data.get("foreign"), f.get("turnover")
+    if fs is not None and to is not None and fs.notna().sum() > 40:
+        fs_ = fs.reindex(idx)
+        ratio = fs_.rolling(20, min_periods=18).sum() / to.rolling(20, min_periods=18).sum()
+        hit = ratio <= -FS_SELL
+        base = t.copy()
+        t = t.where(~hit.fillna(False), np.minimum(t, FS_CAP))
+        r, a = ratio.iloc[-1], bool(hit.iloc[-1]) if pd.notna(hit.iloc[-1]) else False
+        sell20 = fs_.tail(20).sum()
+        out.append({"key": "foreign", "name": "外資重賣", "active": a, "binding": a and float(base.iloc[-1]) > FS_CAP,
+                    "regime": "外資重賣",
+                    "value": (f"上市外資 20 日{'賣超' if sell20 < 0 else '買超'} {abs(sell20):,.0f} 億，占成交金額 {abs(r) * 100:.1f}%" if pd.notna(r) else "資料不足"),
+                    "rule": f"上市外資 20 日賣超達上市成交金額 {FS_SELL * 100:.0f}% 以上 → 水位上限 {FS_CAP}%",
+                    "detail": ("觸發中，水位上限 30%" if a else
+                               (f"未觸發：賣超比例 {abs(min(r, 0)) * 100:.1f}%，門檻 {FS_SELL * 100:.0f}%" if pd.notna(r) else "")),
+                    "date": str(fs.dropna().index[-1].date())})
+    return t, out
 
 
 # ---------- 加權＋櫃買 ----------
@@ -629,6 +678,13 @@ def main():
             ts_ = ROOT / "data" / "public" / "tsmc.csv"
             if ts_.exists():
                 data["tsmc"] = pd.read_csv(ts_, parse_dates=["date"]).set_index("date")
+    fxp = ROOT / "data" / "public" / "fx.csv"
+    if public_mode and fxp.exists():
+        data["fx"] = pd.read_csv(fxp, parse_dates=["date"]).drop_duplicates("date").set_index("date").sort_index()["usdtwd"]
+    elif "external" in data and "usdtwd" in data["external"]:
+        data["fx"] = data["external"]["usdtwd"]
+    if "foreign" not in data and "inst" in data and "foreign_net" in data["inst"]:
+        data["foreign"] = data["inst"]["foreign_net"]
     market_date = str(data["breadth"].dropna(how="all").index[-1].date()) if public_mode and "breadth" in data else None
     chip_date = None
     daily_dir = ROOT / "data" / "daily"
@@ -651,6 +707,7 @@ def main():
             cd = pd.DataFrame(rows).assign(date=lambda x: pd.to_datetime(x["date"])).set_index("date").sort_index()
             data["margin"] = pd.DataFrame({"twse_margin": cd["twse_margin"] / 1e8}).dropna()
             data["futures"] = pd.DataFrame({"foreign_tx_net_oi": cd["oi"]}).dropna()
+            data["foreign"] = (pd.to_numeric(cd["foreign"], errors="coerce") / 1e8).dropna()
             chip_date = str(cd.dropna(how="all").index[-1].date())
     if public_mode and "futures" in data and (ROOT / "data" / "public" / "market.csv").exists():
         pc_ = pd.read_csv(ROOT / "data" / "public" / "market.csv", parse_dates=["date"]).set_index("date").get("pc_ratio")
@@ -680,6 +737,7 @@ def main():
         markets, combo_note = two_markets(f["close"], R, tpc_, Ro)
     else:
         tiers = R["expo"]
+    tiers, overlays = apply_overlays(tiers, data, f)
     if "breadth" in data:
         f["above_ma60"] = data["breadth"]["above_ma60"].reindex(f.index)
     fwd_base = data["taiex_tr"]["close"].reindex(f.index).ffill() if "taiex_tr" in data else f["close"]
@@ -730,8 +788,8 @@ def main():
         "close": float(f["close"].iloc[-1]),
         "change_pct": float(f["close"].pct_change().iloc[-1] * 100),
         "exposure": tier, "prev_exposure": prev,
-        "markets": markets, "combo_note": combo_note,
-        "regime": "急跌煞車" if (markets and any(m["brake"] for m in markets)) or bool(R["brake"].iloc[-1]) else {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}[tier], "score": round(sc, 3),
+        "markets": markets, "combo_note": combo_note, "overlays": overlays,
+        "regime": "急跌煞車" if (markets and any(m["brake"] for m in markets)) or bool(R["brake"].iloc[-1]) else next((o["regime"] for o in overlays if o["active"] and o.get("binding")), None) or {100: "季線之上", 50: "跌破季線", 30: "跌破季線且下彎"}.get(tier, f"{tier}%"), "score": round(sc, 3),
         "rule": {"ma60": round(float(R["ma"].iloc[-1]), 0), "slope": slope_lab, "streak": int(R["streak"].iloc[-1]),
                  "brake": bool(R["brake"].iloc[-1]), "dd20": round(float(R["dd20"].iloc[-1]) * 100, 1),
                  "side": "下" if bool(R["below"].iloc[-1]) else "上"},

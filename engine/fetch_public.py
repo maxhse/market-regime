@@ -1,4 +1,4 @@
-"""抓公開的指數日線 → data/public/：加權指數（^TWII，高低收）與費半（^SOX）。先試 Yahoo，失敗改用 Stooq。在 GitHub Actions 上執行。"""
+"""抓公開的指數日線 → data/public/：加權指數（^TWII，高低收）、費半（^SOX）、美元兌台幣（TWD=X）。先試 Yahoo，失敗改用 Stooq。在 GitHub Actions 上執行。"""
 import csv, io, json, sys, time, urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -64,6 +64,7 @@ def twse_topup():
 
 ok1 = fetch("twii", [("yahoo", lambda: yahoo("%5ETWII", 8)), ("stooq", lambda: stooq("^twse"))], ["open", "high", "low", "close"])
 ok2 = fetch("sox", [("yahoo", lambda: yahoo("%5ESOX", -5)), ("stooq", lambda: stooq("^sox"))], ["sox"])
+fetch("fx", [("yahoo", lambda: yahoo("TWD%3DX", 8)), ("stooq", lambda: stooq("usdtwd"))], ["usdtwd"])
 if ok1:
     twse_topup()
 sys.exit(0 if ok1 else 1)
