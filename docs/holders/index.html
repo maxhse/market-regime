@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>大戶持股</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f2ee;--card:#fffdf9;--ink:#1b1d21;--muted:#6b6f76;--line:#e3dfd7;
+  --bull:#c23b2a;--bear:#1f7a4d;--neutral:#8a8f98;--accent:#2b4c7e;--retail:#b7791f;--hl:#fdf3e1;
+}
+/* 台股慣例：紅漲綠跌；大戶增加用紅、減少用綠 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121417;--card:#1b1e23;--ink:#e9e7e2;--muted:#9aa0a8;--line:#2c3037;
+  --bull:#ef6a58;--bear:#3fb37a;--neutral:#8a8f98;--accent:#86a8dc;--retail:#e0a84a;--hl:#2a2318;}}
+:root[data-theme="dark"]{--bg:#121417;--card:#1b1e23;--ink:#e9e7e2;--muted:#9aa0a8;--line:#2c3037;
+  --bull:#ef6a58;--bear:#3fb37a;--neutral:#8a8f98;--accent:#86a8dc;--retail:#e0a84a;--hl:#2a2318;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC",system-ui,sans-serif;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px 60px}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+h1{font-size:20px;margin:0;letter-spacing:.04em}
+.meta{color:var(--muted);font-size:13px}
+.site-nav{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.site-nav a{font-size:13px;padding:3px 12px;border-radius:999px;text-decoration:none;color:var(--ink);border:1px solid var(--line)}
+.site-nav a.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:500;letter-spacing:.05em}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tile .l{font-size:12.5px;color:var(--muted)}
+.tile .v{font-size:26px;font-weight:700;line-height:1.2}
+.tile .d{font-size:12.5px;color:var(--muted)}
+.up{color:var(--bull)}.dn{color:var(--bear)}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.ch{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.ch .t{font-size:13px;color:var(--muted);margin-bottom:4px}
+svg text{fill:var(--muted);font-size:11px;font-family:"JetBrains Mono",monospace}
+.read{margin-top:12px;font-size:14px}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.ctl input{font:inherit;font-size:14px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:180px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;padding:5px 11px;border:0;background:transparent;color:var(--ink);cursor:pointer;border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--ink);color:var(--card)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-weight:500;color:var(--muted);text-align:right;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+th:first-child,td:first-child{text-align:left}
+th.s:after{content:" ▾"}th.s.asc:after{content:" ▴"}
+td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+tr.row{cursor:pointer}tr.row:hover td{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+tr.open td{background:var(--hl)}
+td .nm{color:var(--muted);font-size:12px;margin-left:6px}
+.tag{font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
+.detail td{white-space:normal;text-align:left;background:var(--hl)}
+.dgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.more{text-align:center;margin-top:10px}
+.more button{font:inherit;font-size:13px;padding:6px 16px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);cursor:pointer}
+.empty{text-align:center;padding:40px;color:var(--muted)}
+@media (max-width:720px){.tiles{grid-template-columns:1fr 1fr}.charts,.dgrid{grid-template-columns:1fr}.hide-s{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>大戶持股</h1>
+      <nav class="site-nav"><a href="../">持股水位</a><a href="../chip/">籌碼儀錶板</a><a class="on" href="./">大戶持股</a></nav></div>
+    <div class="meta" id="meta">載入中…</div>
+  </header>
+  <div id="app"><div class="card empty">載入中…</div></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d=1) => v==null||isNaN(v) ? '—' : Number(v).toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d});
+const sgn = (v, d=2, u='') => v==null ? '—' : `<span class="${v>0?'up':v<0?'dn':''}">${v>0?'+':''}${fmt(v,d)}${u}</span>`;
+const wd = w => `${w.slice(4,6)}/${w.slice(6)}`;
+const TAG = {"集中":["var(--bull)","4 週千張大戶增加 1 個百分點以上，股東人數減少 1% 以上"],
+             "逆勢吸籌":["var(--bull)","籌碼集中，但股價 4 週下跌"],
+             "渙散":["var(--bear)","4 週千張大戶減少 1 個百分點以上，股東人數增加 1% 以上"],
+             "拉高出貨":["var(--bear)","籌碼渙散，但股價 4 週上漲"]};
+let D, rows = [], sortK = 'd4', asc = false, mkt = '全部', tagF = '全部', q = '', shown = 50, openC = null;
+
+function line(series, opt){
+  // series: [{v:[...], color, label}] 共用 x（週）
+  const W=460,H=150,P={l:40,r:8,t:8,b:20};
+  const all = series.flatMap(s=>s.v).filter(v=>v!=null);
+  if (all.length<2) return '<div class="note">資料累積中</div>';
+  let lo=Math.min(...all), hi=Math.max(...all); const pad=(hi-lo)*0.12||0.5; lo-=pad; hi+=pad;
+  const n=series[0].v.length, X=i=>P.l+(W-P.l-P.r)*i/Math.max(n-1,1), Y=v=>P.t+(H-P.t-P.b)*(1-(v-lo)/(hi-lo));
+  const paths=series.map(s=>{let d='',pen=false;s.v.forEach((v,i)=>{if(v==null){pen=false;return;}d+=(pen?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1);pen=true;});
+    return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;}).join('');
+  const yt=[lo+pad,(lo+hi)/2,hi-pad].map(v=>`<text x="${P.l-5}" y="${Y(v)+4}" text-anchor="end">${fmt(v,opt?.d??1)}</text><line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/>`).join('');
+  const xs=opt?.x||[]; const xt=[0,Math.floor((n-1)/2),n-1].map(i=>xs[i]?`<text x="${X(i)}" y="${H-4}" text-anchor="${i===0?'start':i===n-1?'end':'middle'}">${wd(xs[i])}</text>`:'').join('');
+  const last=series.map(s=>{const i=s.v.length-1;return s.v[i]==null?'':`<circle cx="${X(i)}" cy="${Y(s.v[i])}" r="3.5" fill="${s.color}" stroke="var(--card)" stroke-width="2"/>`}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(opt?.label||'走勢')}">${yt}${paths}${last}${xt}</svg>`;
+}
+
+function market(){
+  const m=D.market; if(!m.length) return '';
+  const L=m[m.length-1], ago=k=>m.length>k?m[m.length-1-k]:null, x=m.map(r=>r.w);
+  const d1=ago(1)?L.p1000-ago(1).p1000:null, d4=ago(4)?L.p1000-ago(4).p1000:null;
+  const r1=ago(1)?L.p50-ago(1).p50:null, r4=ago(4)?L.p50-ago(4).p50:null;
+  const h4=m.slice(-4).reduce((a,r)=>a+(r.holders_chg||0),0);
+  let read='';
+  if(d4!=null){
+    if(d4>0.3&&h4<0) read='近 4 週大戶加碼、股東人數減少：<b>籌碼往大戶集中</b>。';
+    else if(d4<-0.3&&h4>0) read='近 4 週大戶減碼、股東人數增加：<b>籌碼往散戶分散</b>，通常是偏空的組合。';
+    else if(d4<-0.3) read='近 4 週大戶持股下降。';
+    else if(d4>0.3) read='近 4 週大戶持股上升。';
+    else read='近 4 週大戶持股變化不大。';
+  }
+  return `<div class="card"><h2>市場整體（市值前 ${D.top_n} 大，市值加權）</h2>
+    <div class="tiles">
+      <div class="tile"><div class="l">千張大戶持股</div><div class="v mono">${fmt(L.p1000,2)}%</div><div class="d">1 週 ${sgn(d1)}・4 週 ${sgn(d4)}</div></div>
+      <div class="tile"><div class="l">50 張以下散戶持股</div><div class="v mono">${fmt(L.p50,2)}%</div><div class="d">1 週 ${sgn(r1)}・4 週 ${sgn(r4)}</div></div>
+      <div class="tile"><div class="l">股東人數（本週）</div><div class="v mono">${sgn(L.holders_chg,2,'%')}</div><div class="d">4 週累計 ${sgn(h4,2,'%')}</div></div>
+      <div class="tile"><div class="l">本週大戶加碼／減碼家數</div><div class="v mono"><span class="up">${fmt(L.up_pct,0)}%</span> / <span class="dn">${fmt(L.dn_pct,0)}%</span></div><div class="d">千張大戶變動 0.05 個百分點以上</div></div>
+    </div>
+    <div class="read">${read}</div>
+    <div class="charts">
+      <div class="ch"><div class="t">千張大戶持股（%）</div>${line([{v:m.map(r=>r.p1000),color:'var(--accent)'}],{x,d:1,label:'千張大戶持股'})}</div>
+      <div class="ch"><div class="t">50 張以下散戶持股（%）</div>${line([{v:m.map(r=>r.p50),color:'var(--retail)'}],{x,d:1,label:'散戶持股'})}</div>
+    </div>
+    <div class="note">資料：集保結算所「集保戶股權分散表」，每週五盤後公布。成分固定用最新一週市值前 ${D.top_n} 大，避免成分變動造成跳動。只作參考，不影響建議水位。</div></div>`;
+}
+
+function filtered(){
+  return D.stocks.filter(s=>(mkt==='全部'||s.mkt===mkt)&&(tagF==='全部'||s.tag===tagF||(tagF==='偏多'&&(s.tag==='集中'||s.tag==='逆勢吸籌'))||(tagF==='偏空'&&(s.tag==='渙散'||s.tag==='拉高出貨')))
+    &&(!q||s.code.includes(q)||(s.name||'').includes(q)))
+    .sort((a,b)=>{const x=a[sortK],y=b[sortK];if(x==null)return 1;if(y==null)return -1;return (typeof x==='string'?x.localeCompare(y):x-y)*(asc?1:-1);});
+}
+
+function detail(s){
+  const h=s.hist, x=h.map(r=>r[0]);
+  return `<tr class="detail"><td colspan="10"><div class="dgrid">
+    <div><div class="note" style="margin:0 0 4px">千張大戶持股（%）</div>${line([{v:h.map(r=>r[1]),color:'var(--accent)'}],{x,d:1,label:s.code+' 千張大戶'})}</div>
+    <div><div class="note" style="margin:0 0 4px">400 張以上持股（%）</div>${line([{v:h.map(r=>r[2]),color:'var(--accent)'}],{x,d:1,label:s.code+' 400 張以上'})}</div>
+    <div><div class="note" style="margin:0 0 4px">股東人數</div>${line([{v:h.map(r=>r[4]),color:'var(--retail)'}],{x,d:0,label:s.code+' 股東人數'})}</div>
+  </div><div class="note">收盤 ${fmt(s.px,2)}・市值 ${fmt(s.cap,0)} 億・50 張以下散戶 ${fmt(s.p50,2)}%・12 週千張大戶 ${sgn(s.d12)}</div></td></tr>`;
+}
+
+function table(){
+  const list=filtered(), cols=[['code','股票'],['cap','市值（億）'],['p1000','千張大戶%'],['d1','1 週'],['d4','4 週'],['d12','12 週'],['h4','股東人數 4 週'],['px4','股價 4 週'],['p50','散戶%'],['tag','訊號']];
+  const head=cols.map(([k,l],i)=>`<th data-k="${k}" class="${sortK===k?'s'+(asc?' asc':''):''} ${[1,5,8].includes(i)?'hide-s':''}">${l}</th>`).join('');
+  const body=list.slice(0,shown).map(s=>{
+    const t=s.tag?`<span class="tag" style="color:${TAG[s.tag][0]}" title="${TAG[s.tag][1]}">${s.tag}</span>`:'';
+    return `<tr class="row ${openC===s.code?'open':''}" data-c="${s.code}"><td><b class="mono">${s.code}</b><span class="nm">${esc(s.name)}</span></td>
+      <td class="mono hide-s">${fmt(s.cap,0)}</td><td class="mono">${fmt(s.p1000,2)}</td><td class="mono">${sgn(s.d1)}</td><td class="mono">${sgn(s.d4)}</td>
+      <td class="mono hide-s">${sgn(s.d12)}</td><td class="mono">${sgn(s.h4,1,'%')}</td><td class="mono">${sgn(s.px4,1,'%')}</td><td class="mono hide-s">${fmt(s.p50,1)}</td><td>${t}</td></tr>`
+      +(openC===s.code?detail(s):'');}).join('');
+  const seg=(arr,cur,id)=>`<div class="seg" id="${id}">${arr.map(a=>`<button class="${a===cur?'on':''}" data-v="${a}">${a}</button>`).join('')}</div>`;
+  return `<div class="card"><h2>個股（市值前 ${D.top_n} 大）</h2>
+    <div class="ctl"><input id="q" placeholder="代號或名稱" value="${esc(q)}">${seg(['全部','上市','上櫃'],mkt,'mk')}${seg(['全部','偏多','偏空'],tagF,'tg')}</div>
+    <div class="tw"><table><tr>${head}</tr>${body||'<tr><td colspan="10" class="empty">沒有符合的股票</td></tr>'}</table></div>
+    ${list.length>shown?`<div class="more"><button id="more">顯示更多（共 ${list.length} 檔）</button></div>`:''}
+    <div class="note">點一列看該股近一年走勢。數字為百分點變化；「股東人數 4 週」為人數增減 %。<br>
+      訊號：<b>集中</b>＝4 週千張大戶 +1 個百分點以上且股東人數 −1% 以上；<b>逆勢吸籌</b>＝集中但股價 4 週下跌；
+      <b>渙散</b>＝4 週千張大戶 −1 個百分點以上且股東人數 +1% 以上；<b>拉高出貨</b>＝渙散但股價 4 週上漲。訊號未經回測，只是整理籌碼變化。</div></div>`;
+}
+
+function render(){
+  $('#app').innerHTML = market() + table();
+  document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k; if(sortK===k) asc=!asc; else {sortK=k; asc=(k==='code');} render();});
+  document.querySelectorAll('tr.row').forEach(tr=>tr.onclick=()=>{openC=openC===tr.dataset.c?null:tr.dataset.c; render();});
+  document.querySelectorAll('#mk button').forEach(b=>b.onclick=()=>{mkt=b.dataset.v;shown=50;render();});
+  document.querySelectorAll('#tg button').forEach(b=>b.onclick=()=>{tagF=b.dataset.v;shown=50;render();});
+  const qi=$('#q'); qi.oninput=()=>{q=qi.value.trim();shown=50;const p=qi.selectionStart;render();const n=$('#q');n.focus();n.setSelectionRange(p,p);};
+  const mb=$('#more'); if(mb) mb.onclick=()=>{shown+=100;render();};
+}
+
+fetch('../chip/data/tdcc.json?t='+Date.now()).then(r=>{if(!r.ok)throw r.status;return r.json();}).then(j=>{
+  D=j; const w=j.latest_week;
+  $('#meta').textContent=`集保資料 ${w.slice(0,4)}/${w.slice(4,6)}/${w.slice(6)}・共 ${j.weeks.length} 週・更新 ${j.built_at}`;
+  render();
+}).catch(()=>{$('#app').innerHTML='<div class="card empty">集保資料尚未產出，第一次回補完成後就會出現。</div>';$('#meta').textContent='';});
+</script>
+</body>
+</html>
