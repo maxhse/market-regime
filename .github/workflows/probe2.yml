@@ -1,0 +1,9 @@
+name: probe2
+on: workflow_dispatch
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sL -m 120 -o od.csv "https://opendata.tdcc.com.tw/getOD.ashx?id=1-5"; ls -l od.csv; file od.csv; head -c 600 od.csv; echo; wc -l od.csv
+          echo ---; curl -sL -m 60 "https://www.tdcc.com.tw/portal/zh/smWeb/qryStock" | grep -o 'name="[A-Za-z_]*"\|<option value="2[0-9]\{7\}"' | sort | uniq | head -20
