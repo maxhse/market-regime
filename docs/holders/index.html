@@ -88,14 +88,15 @@ let D, rows = [], sortK = 'd4', asc = false, mkt = '全部', tagF = '全部', q 
 
 function line(series, opt){
   // series: [{v:[...], color, label}] 共用 x（週）
-  const W=460,H=150,P={l:40,r:8,t:8,b:20};
+  const W=460,H=150,P={l:50,r:8,t:8,b:20};
   const all = series.flatMap(s=>s.v).filter(v=>v!=null);
   if (all.length<2) return '<div class="note">資料累積中</div>';
   let lo=Math.min(...all), hi=Math.max(...all); const pad=(hi-lo)*0.12||0.5; lo-=pad; hi+=pad;
   const n=series[0].v.length, X=i=>P.l+(W-P.l-P.r)*i/Math.max(n-1,1), Y=v=>P.t+(H-P.t-P.b)*(1-(v-lo)/(hi-lo));
   const paths=series.map(s=>{let d='',pen=false;s.v.forEach((v,i)=>{if(v==null){pen=false;return;}d+=(pen?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1);pen=true;});
     return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;}).join('');
-  const yt=[lo+pad,(lo+hi)/2,hi-pad].map(v=>`<text x="${P.l-5}" y="${Y(v)+4}" text-anchor="end">${fmt(v,opt?.d??1)}</text><line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/>`).join('');
+  const yf=v=>Math.abs(v)>=1e4?fmt(v/1e4,1)+'萬':fmt(v,opt?.d??1);
+  const yt=[lo+pad,(lo+hi)/2,hi-pad].map(v=>`<text x="${P.l-5}" y="${Y(v)+4}" text-anchor="end">${yf(v)}</text><line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/>`).join('');
   const xs=opt?.x||[]; const xt=[0,Math.floor((n-1)/2),n-1].map(i=>xs[i]?`<text x="${X(i)}" y="${H-4}" text-anchor="${i===0?'start':i===n-1?'end':'middle'}">${wd(xs[i])}</text>`:'').join('');
   const last=series.map(s=>{const i=s.v.length-1;return s.v[i]==null?'':`<circle cx="${X(i)}" cy="${Y(s.v[i])}" r="3.5" fill="${s.color}" stroke="var(--card)" stroke-width="2"/>`}).join('');
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(opt?.label||'走勢')}">${yt}${paths}${last}${xt}</svg>`;
