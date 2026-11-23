@@ -1,0 +1,39 @@
+name: tdcc
+# 集保戶股權分散表（大戶持股參考）。每週六上午抓最新一週；第一次會用個股查詢回補近一年（市值前 300 大）。
+on:
+  schedule:
+    - cron: "17 1 * * 6"     # 台北週六 09:17
+    - cron: "47 13 * * 5"    # 台北週五 21:47（集保通常週五傍晚公布）
+  workflow_dispatch:
+  push:
+    paths: ["engine/tdcc.py", "engine/tdcc_build.py", ".github/workflows/tdcc.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: tdcc
+  cancel-in-progress: false
+jobs:
+  tdcc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install --quiet -r requirements.txt requests
+      - name: 抓最新一週、回補、產出
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          python engine/tdcc.py weekly || echo "開放資料失敗"
+          for i in 1 2 3 4 5 6 7 8; do
+            python engine/tdcc.py backfill 38 | tee /tmp/td.log || true
+            python engine/tdcc.py build || true
+            git add data/market/tdcc data/market/names.json docs/chip/data/tdcc.json 2>/dev/null || true
+            if ! git diff --cached --quiet; then
+              git commit -q -m "集保股權分散 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+              for t in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && break; sleep 20; done
+            fi
+            if grep -q "尚餘 0 筆" /tmp/td.log || grep -q "待補 0 筆" /tmp/td.log; then break; fi
+          done
+          exit 0

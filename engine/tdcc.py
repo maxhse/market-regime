@@ -76,6 +76,27 @@ def weekly():
     recs = {c: s for c, lv in by.items() if (s := summarize(lv))}
     save_week(date, recs)
     print(f"集保 {date}：{len(recs)} 檔")
+    names()
+
+
+def names():
+    """股票名稱與市場別（證交所、櫃買 OpenAPI）。"""
+    out = {}
+    try:
+        for r in requests.get("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", headers={"User-Agent": UA}, timeout=60).json():
+            if is_stock(r.get("Code", "")): out[r["Code"]] = [r["Name"].strip(), "上市"]
+    except Exception as e:  # noqa: BLE001
+        print("上市名稱失敗", str(e)[:60])
+    try:
+        for r in requests.get("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", headers={"User-Agent": UA}, timeout=60).json():
+            c = r.get("SecuritiesCompanyCode", "")
+            if is_stock(c): out[c] = [r.get("CompanyName", "").strip(), "上櫃"]
+    except Exception as e:  # noqa: BLE001
+        print("上櫃名稱失敗", str(e)[:60])
+    if out:
+        p = DIR.parent / "names.json"
+        old = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        old.update(out); p.write_text(json.dumps(old, ensure_ascii=False), encoding="utf-8")
 
 
 # ---------- 個股查詢回補 ----------
@@ -102,8 +123,11 @@ def qry(s, tok, code, date):
     levels = {}
     for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S):
         td = re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)
-        if len(td) == 5 and _num(td[0]) is not None:
-            k = int(_num(td[0]))
+        if len(td) != 5:
+            continue
+        lab = re.sub(r"<[^>]+>|\s|　", "", td[0] + td[1])
+        k = int(_num(td[0])) if _num(td[0]) is not None else (17 if "合計" in lab else 16 if "差異" in lab else None)
+        if k is not None:
             levels[k] = (_num(td[2]) or 0, _num(td[3]) or 0, _num(td[4]) or 0)
     return levels, (nt.group(1) if nt else tok)
 
@@ -176,5 +200,6 @@ if __name__ == "__main__":
     if cmd == "weekly": weekly()
     elif cmd == "backfill": backfill(float(sys.argv[2]) if len(sys.argv) > 2 else 40)
     elif cmd == "probe": probe(*(sys.argv[2:3]))
+    elif cmd == "names": names()
     elif cmd == "build":
-        import tdcc_build; tdcc_build.main()
+        sys.path.insert(0, str(Path(__file__).parent)); import tdcc_build; tdcc_build.main()
