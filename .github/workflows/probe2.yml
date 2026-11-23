@@ -1,0 +1,10 @@
+name: probe2
+on: workflow_dispatch
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in "https://cpx.cbc.gov.tw/API/DataAPI/Get?FileName=BP01D01" "https://www.cbc.gov.tw/public/data/OpenData/%E5%A4%96%E5%8C%AF%E5%B1%80/BP01D01.csv" "https://www.taifex.com.tw/cht/3/dailyFXRateDown" ; do
+            echo "== $u"; curl -sL -m 60 "$u" -o o.bin -w "%{http_code} %{size_download} %{content_type}\n"; head -c 700 o.bin | iconv -f utf-8 -t utf-8 -c; echo; done
+          echo "== taifex post"; curl -sL -m 60 -X POST https://www.taifex.com.tw/cht/3/dailyFXRateDown -d "queryStartDate=2014/01/01&queryEndDate=2014/02/01" | iconv -f big5 -t utf-8 -c | head -8
