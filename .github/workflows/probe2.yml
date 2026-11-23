@@ -4,6 +4,8 @@ jobs:
   p:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          curl -sL -m 120 -o od.csv "https://opendata.tdcc.com.tw/getOD.ashx?id=1-5"; ls -l od.csv; file od.csv; head -c 600 od.csv; echo; wc -l od.csv
-          echo ---; curl -sL -m 60 "https://www.tdcc.com.tw/portal/zh/smWeb/qryStock" | grep -o 'name="[A-Za-z_]*"\|<option value="2[0-9]\{7\}"' | sort | uniq | head -20
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q requests
+      - run: python engine/tdcc.py probe 2330; python engine/tdcc.py probe 3017; python engine/tdcc.py weekly; head -3 data/market/tdcc/*.csv; wc -l data/market/tdcc/*.csv
