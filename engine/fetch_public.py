@@ -64,7 +64,9 @@ def twse_topup():
 
 def taifex_fx():
     """期交所每日外幣參考匯率（美元／新台幣），2014 起。第一次全抓，之後只補最近 40 天。"""
-    import urllib.parse
+    sys.path.insert(0, str(PUB.parents[1] / "chip"))
+    from common import post_bytes, session  # 與期貨資料相同的連線方式（含重試）
+    ses = session()
     path = PUB / "fx.csv"
     rows = {}
     if path.exists():
@@ -74,8 +76,8 @@ def taifex_fx():
     a, n = start, 0
     while a <= end:
         b = min(a + timedelta(days=30), end)
-        body = urllib.parse.urlencode({"queryStartDate": f"{a:%Y/%m/%d}", "queryEndDate": f"{b:%Y/%m/%d}"}).encode()
-        raw = urllib.request.urlopen(urllib.request.Request("https://www.taifex.com.tw/cht/3/dailyFXRateDown", data=body, headers=UA), timeout=60).read()
+        raw = post_bytes(ses, "https://www.taifex.com.tw/cht/3/dailyFXRateDown",
+                         {"queryStartDate": f"{a:%Y/%m/%d}", "queryEndDate": f"{b:%Y/%m/%d}"})
         for r in csv.reader(io.StringIO(raw.decode("big5", errors="replace"))):
             if len(r) > 1 and r[0][:2] in ("19", "20") and "/" in r[0]:
                 try:
