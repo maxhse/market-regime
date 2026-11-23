@@ -190,9 +190,15 @@ def backfill(minutes=40.0):
 
 def probe(code="2330"):
     s, tok, dates = qry_session()
-    print("token", bool(tok), "dates", len(dates), dates[:2], dates[-2:])
-    lv, _ = qry(s, tok, code, dates[-1])
-    print(code, dates[-1], lv.get(15), lv.get(17), summarize(lv))
+    print("token", tok[:12], "dates", len(dates), dates[:2], dates[-2:])
+    for i, (c, d) in enumerate([(code, dates[-1]), ("2317", dates[-2]), ("2454", dates[-3]), ("3017", dates[-4]), (code, dates[0])]):
+        t0 = time.time()
+        lv, nt = qry(s, tok, c, d)
+        print(i, c, d, "levels", len(lv), "has17", 17 in lv, "newtok", nt[:12], "same", nt == tok, f"{time.time()-t0:.1f}s", summarize(lv))
+        tok = nt
+        time.sleep(0.6)
+    # 同一個 token 不更新再查一次
+    lv, _ = qry(s, tok, "2303", dates[-5]); print("reuse", len(lv))
 
 
 if __name__ == "__main__":
