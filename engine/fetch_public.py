@@ -1,4 +1,4 @@
-"""抓公開的指數日線 → data/public/：加權指數（^TWII，高低收）、費半（^SOX）、美元兌台幣（TWD=X）。先試 Yahoo，失敗改用 Stooq。在 GitHub Actions 上執行。"""
+"""抓公開的指數日線 → data/public/：加權指數（^TWII，高低收）、費半（^SOX）、美元兌台幣（期交所參考匯率）。先試 Yahoo，失敗改用 Stooq。在 GitHub Actions 上執行。"""
 import csv, io, json, sys, time, urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -62,9 +62,40 @@ def twse_topup():
     print(f"twii ← twse 官方補 {added} 天，最新 {max(rows)}")
 
 
+def taifex_fx():
+    """期交所每日外幣參考匯率（美元／新台幣），2014 起。第一次全抓，之後只補最近 40 天。"""
+    import urllib.parse
+    path = PUB / "fx.csv"
+    rows = {}
+    if path.exists():
+        rows = {r[0]: r[1] for r in csv.reader(open(path)) if r and r[0] != "date"}
+    start = (datetime.strptime(max(rows), "%Y-%m-%d") - timedelta(days=40)) if len(rows) > 2500 else datetime(2014, 1, 1)
+    end = datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)
+    a, n = start, 0
+    while a <= end:
+        b = min(a + timedelta(days=30), end)
+        body = urllib.parse.urlencode({"queryStartDate": f"{a:%Y/%m/%d}", "queryEndDate": f"{b:%Y/%m/%d}"}).encode()
+        raw = urllib.request.urlopen(urllib.request.Request("https://www.taifex.com.tw/cht/3/dailyFXRateDown", data=body, headers=UA), timeout=60).read()
+        for r in csv.reader(io.StringIO(raw.decode("big5", errors="replace"))):
+            if len(r) > 1 and r[0][:2] in ("19", "20") and "/" in r[0]:
+                try:
+                    v = float(r[1])
+                except ValueError:
+                    continue
+                rows[datetime.strptime(r[0].strip(), "%Y/%m/%d").strftime("%Y-%m-%d")] = v; n += 1
+        a = b + timedelta(days=1)
+        time.sleep(1.5)
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f); w.writerow(["date", "usdtwd"]); w.writerows([k, rows[k]] for k in sorted(rows))
+    print(f"fx ← 期交所：本次 {n} 筆，共 {len(rows)} 筆，最新 {max(rows)} {rows[max(rows)]}")
+
+
 ok1 = fetch("twii", [("yahoo", lambda: yahoo("%5ETWII", 8)), ("stooq", lambda: stooq("^twse"))], ["open", "high", "low", "close"])
 ok2 = fetch("sox", [("yahoo", lambda: yahoo("%5ESOX", -5)), ("stooq", lambda: stooq("^sox"))], ["sox"])
-fetch("fx", [("yahoo", lambda: yahoo("TWD%3DX", 8)), ("stooq", lambda: stooq("usdtwd"))], ["usdtwd"])
+try:
+    taifex_fx()
+except Exception as e:  # noqa: BLE001
+    print("匯率抓取失敗，沿用既有資料：", e)
 if ok1:
     twse_topup()
 sys.exit(0 if ok1 else 1)

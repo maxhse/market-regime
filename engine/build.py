@@ -324,7 +324,7 @@ def public_status(data, ref):
              ("P/C ratio", "期交所 pcRatio", col("futures", "pc_ratio"), False),
              ("台積電收盤價", "證交所 MI_INDEX", col("tsmc", "close") if "tsmc" in data and "close" in data["tsmc"] else col("tsmc"), False),
              ("費城半導體指數", "Yahoo Finance ^SOX", col("external", "sox"), False),
-             ("美元兌台幣", "Yahoo Finance TWD=X", data["fx"].dropna() if data.get("fx") is not None else None, True),
+             ("美元兌台幣", "期交所 每日外幣參考匯率", data["fx"].dropna() if data.get("fx") is not None else None, True),
              ("上市外資買賣超", "證交所 BFI82U", data["foreign"].dropna() if data.get("foreign") is not None else None, True)]
     out = []
     for label, src, s, req in items:
