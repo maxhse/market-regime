@@ -4,6 +4,12 @@
   "net_oi_lots": -103182,
   "net_oi_value": -832157862000
  },
+ "tpex_insti": {
+  "dealer": 525883572,
+  "foreign": -8403826766,
+  "total": -6931202615,
+  "trust": 946740579
+ },
  "twse_insti": {
   "dealer": -81025340224,
   "foreign": -50389912492,
