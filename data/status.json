@@ -1,48 +1,45 @@
 {
- "_checked_at": "2026-11-27T16:03:33+08:00",
+ "_checked_at": "2026-11-27T16:16:21+08:00",
  "stock_flows": {
-  "data_date": "2026-11-26",
-  "error": "2026-11-27: T86 無資料",
-  "failed_at": "2026-11-27T16:03:33+08:00",
+  "data_date": "2026-11-27",
+  "error": null,
   "label": "個股買賣超排行",
-  "ok": false,
-  "updated_at": "2026-11-27T15:46:03+08:00"
+  "ok": true,
+  "updated_at": "2026-11-27T16:16:21+08:00"
  },
  "taifex_tx": {
   "data_date": "2026-11-27",
   "error": null,
   "label": "台指期外資未平倉",
   "ok": true,
-  "updated_at": "2026-11-27T16:02:43+08:00"
+  "updated_at": "2026-11-27T16:15:42+08:00"
  },
  "tpex_insti": {
   "data_date": "2026-11-27",
-  "error": "2026-11-27: GET failed: https://www.tpex.org.tw/www/zh-tw/insti/summary :: 403 Client Error: Forbidden for url: https://www.tpex.org.tw/www/zh-tw/insti/summary?type=Daily&date=2026%2F11%2F27&response=json",
-  "failed_at": "2026-11-27T16:01:48+08:00",
+  "error": null,
   "label": "櫃買三大法人",
-  "ok": false,
-  "updated_at": "2026-11-27T15:45:35+08:00"
+  "ok": true,
+  "updated_at": "2026-11-27T16:15:38+08:00"
  },
  "tpex_margin": {
   "data_date": "2026-11-26",
-  "error": "2026-11-27: GET failed: https://www.tpex.org.tw/www/zh-tw/margin/balance :: 403 Client Error: Forbidden for url: https://www.tpex.org.tw/www/zh-tw/margin/balance?date=2026%2F11%2F27&response=json",
-  "failed_at": "2026-11-27T16:02:43+08:00",
+  "error": null,
   "label": "上櫃融資餘額",
-  "ok": false,
-  "updated_at": "2026-11-27T15:45:37+08:00"
+  "ok": true,
+  "updated_at": "2026-11-27T16:15:42+08:00"
  },
  "twse_insti": {
   "data_date": "2026-11-27",
   "error": null,
   "label": "證交所三大法人",
   "ok": true,
-  "updated_at": "2026-11-27T16:00:53+08:00"
+  "updated_at": "2026-11-27T16:15:38+08:00"
  },
  "twse_margin": {
   "data_date": "2026-11-26",
   "error": null,
   "label": "上市融資餘額",
   "ok": true,
-  "updated_at": "2026-11-27T16:01:49+08:00"
+  "updated_at": "2026-11-27T16:15:38+08:00"
  }
 }
