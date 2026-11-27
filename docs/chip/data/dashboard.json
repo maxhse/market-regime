@@ -1,5 +1,5 @@
 {
- "built_at": "2026-11-27T15:46:05+08:00",
+ "built_at": "2026-11-27T16:03:35+08:00",
  "rankings": {
   "1": {
    "complete": true,
@@ -3633,12 +3633,13 @@
   ]
  },
  "status": {
-  "_checked_at": "2026-11-27T15:46:03+08:00",
+  "_checked_at": "2026-11-27T16:03:33+08:00",
   "stock_flows": {
    "data_date": "2026-11-26",
-   "error": null,
+   "error": "2026-11-27: T86 無資料",
+   "failed_at": "2026-11-27T16:03:33+08:00",
    "label": "個股買賣超排行",
-   "ok": true,
+   "ok": false,
    "updated_at": "2026-11-27T15:46:03+08:00"
   },
   "taifex_tx": {
@@ -3646,20 +3647,22 @@
    "error": null,
    "label": "台指期外資未平倉",
    "ok": true,
-   "updated_at": "2026-11-27T15:45:37+08:00"
+   "updated_at": "2026-11-27T16:02:43+08:00"
   },
   "tpex_insti": {
    "data_date": "2026-11-27",
-   "error": null,
+   "error": "2026-11-27: GET failed: https://www.tpex.org.tw/www/zh-tw/insti/summary :: 403 Client Error: Forbidden for url: https://www.tpex.org.tw/www/zh-tw/insti/summary?type=Daily&date=2026%2F11%2F27&response=json",
+   "failed_at": "2026-11-27T16:01:48+08:00",
    "label": "櫃買三大法人",
-   "ok": true,
+   "ok": false,
    "updated_at": "2026-11-27T15:45:35+08:00"
   },
   "tpex_margin": {
    "data_date": "2026-11-26",
-   "error": null,
+   "error": "2026-11-27: GET failed: https://www.tpex.org.tw/www/zh-tw/margin/balance :: 403 Client Error: Forbidden for url: https://www.tpex.org.tw/www/zh-tw/margin/balance?date=2026%2F11%2F27&response=json",
+   "failed_at": "2026-11-27T16:02:43+08:00",
    "label": "上櫃融資餘額",
-   "ok": true,
+   "ok": false,
    "updated_at": "2026-11-27T15:45:37+08:00"
   },
   "twse_insti": {
@@ -3667,14 +3670,14 @@
    "error": null,
    "label": "證交所三大法人",
    "ok": true,
-   "updated_at": "2026-11-27T15:45:35+08:00"
+   "updated_at": "2026-11-27T16:00:53+08:00"
   },
   "twse_margin": {
    "data_date": "2026-11-26",
    "error": null,
    "label": "上市融資餘額",
    "ok": true,
-   "updated_at": "2026-11-27T15:45:36+08:00"
+   "updated_at": "2026-11-27T16:01:49+08:00"
   }
  },
  "summary": {
